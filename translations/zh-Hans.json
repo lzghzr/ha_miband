@@ -1,0 +1,167 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "设备已配置",
+      "already_in_progress": "配置流程已在进行中",
+      "api_error": "与 Mi API 通信时出错：{error_detail}",
+      "no_devices_found": "网络上未找到任何设备",
+      "reauth_successful": "重新认证成功"
+    },
+    "error": {
+      "api_device_not_found": "您的小米账户中未找到此设备。",
+      "auth_failed": "身份验证失败：{error_detail}",
+      "decryption_failed": "提供的绑定密钥无效，无法解密传感器数据。请检查并重试。",
+      "expected_32_characters": "需要 32 位字符的十六进制绑定密钥。"
+    },
+    "flow_title": "{name}",
+    "step": {
+      "bluetooth_confirm": {
+        "description": "您要设置 {name} 吗 ？"
+      },
+      "cloud_auth": {
+        "data": {
+          "password": "密码",
+          "username": "用户名"
+        },
+        "description": "请提供您的小米应用用户名和密码。此数据不会被保存，仅用于检索设备加密密钥。用户名和密码区分大小写。"
+      },
+      "confirm_slow": {
+        "description": "该设备在上一分钟没有广播，因此无法确定该设备是否使用加密。这可能是因为设备的广播间隔较长。如果确认仍然添加设备，则下次收到广播时，如果有需要，系统将提示您输入其绑定密钥。"
+      },
+      "get_encryption_key_4_5": {
+        "data": {
+          "bindkey": "绑定密钥"
+        },
+        "description": "传感器广播的数据已加密。为了解密它，需要一个 32 位字符的十六进制绑定密钥。"
+      },
+      "get_encryption_key_4_5_choose_method": {
+        "description": "小米设备可以通过两种方式在 Home Assistant 中设置。\n\n您可以自行输入绑定密钥，或者 Home Assistant 可以从您的小米账户导入绑定密钥。",
+        "menu_options": {
+          "cloud_auth": "小米账户（暂不支持）",
+          "get_encryption_key_4_5": "手动输入加密密钥"
+        }
+      },
+      "user": {
+        "data": {
+          "address": "设备"
+        },
+        "description": "选择要设置的设备"
+      }
+    }
+  },
+  "device": {
+    "smart_band_10": {
+      "name": "小米手环10"
+    },
+    "smart_band_10_nfc": {
+      "name": "小米手环10 NFC版"
+    },
+    "smart_band_10_ceramic_edition": {
+      "name": "小米手环10 陶瓷版"
+    },
+    "smart_band_10_glimmer_edition": {
+      "name": "小米手环10 耀影金特别版"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "wearing": {
+        "name": "佩戴",
+        "state": {
+          "off": "已佩戴",
+          "on": "未佩戴"
+        }
+      },
+      "sleep": {
+        "name": "睡眠",
+        "state": {
+          "off": "已睡着",
+          "on": "已醒来"
+        }
+      }
+    },
+    "event": {
+      "abnormal_signs": {
+        "name": "体征异常",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "high_heart_rate": "监测到心率过高",
+              "low_heart_rate": "监测到心率过低",
+              "low_blood_oxygen": "监测到血氧过低",
+              "high_pressure": "压力过高",
+              "abnormal_heart_beats": "异常心搏",
+              "unknown": "未知"
+            }
+          }
+        }
+      },
+      "daily_vitality_index": {
+        "name": "当日活力指标",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "all_goals_hit": "活力指标达成",
+              "step_goal_hit": "步数目标达成",
+              "calorie_goal_hit": "卡路里目标达成",
+              "moving_goal_hit": "中高强度活动目标达成",
+              "standing_goal_hit": "站立活动目标达成",
+              "unknown": "未知"
+            }
+          }
+        }
+      },
+      "sports": {
+        "name": "运动",
+        "state_attributes": {
+          "event_type": {
+            "name": "运动状态",
+            "state": {
+              "sport_start": "运动开始",
+              "sport_end": "运动结束",
+              "sport_pause": "运动暂停",
+              "sport_continue": "运动继续",
+              "unknown": "未知"
+            }
+          },
+          "sport_type": {
+            "name": "运动类型",
+            "state": {
+              "outdoor_running": "户外跑步",
+              "walking": "健走",
+              "indoor_running": "室内跑步",
+              "mountaineering": "登山",
+              "outdoor_cycling": "户外骑行",
+              "indoor_cycling": "室内单车",
+              "free_training": "自由训练",
+              "pool_swimming": "泳池游泳",
+              "open_water_swimming": "开放水域游泳",
+              "elliptical_machine": "椭圆机",
+              "yoga": "瑜伽",
+              "rowing_machine": "划船机",
+              "jump_rope": "跳绳",
+              "on_foot": "徒步",
+              "stair_climbing_machine": "爬楼机",
+              "climb_stairs": "爬楼梯",
+              "stepper": "踏步机",
+              "physical_training": "体能训练",
+              "dumbbell_training": "哑铃训练",
+              "barbell_training": "杠铃训练",
+              "spinning_bike": "动感单车"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "battery_charging": {
+        "name": "电池充电",
+        "state": {
+          "charging": "正在充电",
+          "charging_disconnected": "已断开充电",
+          "charging_complete": "已完成充电"
+        }
+      }
+    }
+  }
+}

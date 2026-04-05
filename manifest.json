@@ -1,0 +1,24 @@
+{
+  "domain": "miband",
+  "name": "MiBand",
+  "version": "0.0.1",
+  "bluetooth": [
+    {
+      "connectable": false,
+      "service_data_uuid": "0000fe95-0000-1000-8000-00805f9b34fb"
+    }
+  ],
+  "codeowners": [
+    "@Jc2k",
+    "@Ernst79",
+    "@lzghzr"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "bluetooth_adapters"
+  ],
+  "documentation": "https://github.com/lzghzr/ha_miband",
+  "issue_tracker": "https://github.com/lzghzr/ha_miband/issues",
+  "integration_type": "device",
+  "iot_class": "local_push"
+}

@@ -1,0 +1,167 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured",
+      "already_in_progress": "Configuration flow is already in progress",
+      "api_error": "Error while communicating with Mi API: {error_detail}",
+      "no_devices_found": "No devices found on the network",
+      "reauth_successful": "Re-authentication was successful"
+    },
+    "error": {
+      "api_device_not_found": "The device was not found in your Mi account.",
+      "auth_failed": "Authentication failed: {error_detail}",
+      "decryption_failed": "The provided bindkey did not work, sensor data could not be decrypted. Please check it and try again.",
+      "expected_32_characters": "Expected a 32 character hexadecimal bindkey."
+    },
+    "flow_title": "{name}",
+    "step": {
+      "bluetooth_confirm": {
+        "description": "Do you want to set up {name}?"
+      },
+      "cloud_auth": {
+        "data": {
+          "password": "Password",
+          "username": "Username"
+        },
+        "description": "Please provide your Mi app username and password. This data won't be saved and only used to retrieve the device encryption key. Usernames and passwords are case sensitive."
+      },
+      "confirm_slow": {
+        "description": "There hasn't been a broadcast from this device in the last minute so we aren't sure if this device uses encryption or not. This may be because the device uses a slow broadcast interval. Confirm to add this device anyway, then the next time a broadcast is received you will be prompted to enter its bindkey if it's needed."
+      },
+      "get_encryption_key_4_5": {
+        "data": {
+          "bindkey": "Bindkey"
+        },
+        "description": "The sensor data broadcast by the sensor is encrypted. In order to decrypt it we need a 32 character hexadecimal bindkey."
+      },
+      "get_encryption_key_4_5_choose_method": {
+        "description": "A Mi device can be set up in Home Assistant in two different ways.\n\nYou can enter the bindkey yourself, or Home Assistant can import them from your Mi account.",
+        "menu_options": {
+          "cloud_auth": "Mi account (Not supported yet)",
+          "get_encryption_key_4_5": "Enter encryption key manually"
+        }
+      },
+      "user": {
+        "data": {
+          "address": "Device"
+        },
+        "description": "Choose a device to set up"
+      }
+    }
+  },
+  "device": {
+    "smart_band_10": {
+      "name": "Smart Band 10"
+    },
+    "smart_band_10_nfc": {
+      "name": "Smart Band 10 NFC"
+    },
+    "smart_band_10_ceramic_edition": {
+      "name": "Smart Band 10 Ceramic Edition"
+    },
+    "smart_band_10_glimmer_edition": {
+      "name": "Smart Band 10 Glimmer Edition"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "wearing": {
+        "name": "Wearing",
+        "state": {
+          "off": "Wearing",
+          "on": "Not Wear"
+        }
+      },
+      "sleep": {
+        "name": "Sleep",
+        "state": {
+          "off": "Asleep",
+          "on": "Awake"
+        }
+      }
+    },
+    "event": {
+      "abnormal_signs": {
+        "name": "Abnormal Signs",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "high_heart_rate": "High Heart Rate",
+              "low_heart_rate": "Low Heart Rate",
+              "low_blood_oxygen": "Low Blood Oxygen",
+              "high_pressure": "High Pressure",
+              "abnormal_heart_beats": "Abnormal Heart Beats",
+              "unknown": "Unknown"
+            }
+          }
+        }
+      },
+      "daily_vitality_index": {
+        "name": "Daily Vitality Index",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "all_goals_hit": "All Goals Hit",
+              "step_goal_hit": "Step Goal Hit",
+              "calorie_goal_hit": "Calorie Goal Hit",
+              "moving_goal_hit": "Moving Goal Hit",
+              "standing_goal_hit": "Standing Goal Hit",
+              "unknown": "Unknown"
+            }
+          }
+        }
+      },
+      "sports": {
+        "name": "Sports",
+        "state_attributes": {
+          "event_type": {
+            "name": "Sport State",
+            "state": {
+              "sport_start": "Sport Start",
+              "sport_end": "Sport End",
+              "sport_pause": "Sport Pause",
+              "sport_continue": "Sport Continue",
+              "unknown": "Unknown"
+            }
+          },
+          "sport_type": {
+            "name": "Sport Type",
+            "state": {
+              "outdoor_running": "Outdoor Running",
+              "walking": "Walking",
+              "indoor_running": "Indoor Running",
+              "mountaineering": "Mountaineering",
+              "outdoor_cycling": "Outdoor Cycling",
+              "indoor_cycling": "Indoor Cycling",
+              "free_training": "Free Training",
+              "pool_swimming": "Pool Swimming",
+              "open_water_swimming": "Open Water Swimming",
+              "elliptical_machine": "Elliptical Machine",
+              "yoga": "Yoga",
+              "rowing_machine": "Rowing Machine",
+              "jump_rope": "Jump Rope",
+              "on_foot": "On Foot",
+              "stair_climbing_machine": "Stair Climbing Machine",
+              "climb_stairs": "Climb Stairs",
+              "stepper": "Stepper",
+              "physical_training": "Physical Training",
+              "dumbbell_training": "Dumbbell Training",
+              "barbell_training": "Barbell Training",
+              "spinning_bike": "Spinning Bike"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "battery_charging": {
+        "name": "Battery Charging",
+        "state": {
+          "charging": "Charging",
+          "charging_disconnected": "Charging Disconnected",
+          "charging_complete": "Charging Complete"
+        }
+      }
+    }
+  }
+}

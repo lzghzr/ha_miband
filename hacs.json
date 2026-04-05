@@ -1,0 +1,5 @@
+{
+    "name": "MiBand",
+    "content_in_root": true,
+    "homeassistant": "2024.3.0"
+}
