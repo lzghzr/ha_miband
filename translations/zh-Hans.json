@@ -86,6 +86,7 @@
         "state_attributes": {
           "event_type": {
             "state": {
+              "fall_down": "监测到摔倒",
               "high_heart_rate": "监测到心率过高",
               "low_heart_rate": "监测到心率过低",
               "low_blood_oxygen": "监测到血氧过低",

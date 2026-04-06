@@ -16,6 +16,7 @@ MIBAND_EVENT: Final = "miband_event"
 
 
 ABNORMAL_VITAL_SIGNS_TYPE: Final = {
+    0: "fall_down",
     1: "high_heart_rate",
     2: "low_heart_rate",
     3: "low_blood_oxygen",

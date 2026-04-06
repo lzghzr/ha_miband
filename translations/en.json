@@ -86,6 +86,7 @@
         "state_attributes": {
           "event_type": {
             "state": {
+              "fall_down": "Fall Down",
               "high_heart_rate": "High Heart Rate",
               "low_heart_rate": "Low Heart Rate",
               "low_blood_oxygen": "Low Blood Oxygen",
