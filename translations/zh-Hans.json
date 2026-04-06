@@ -15,9 +15,6 @@
     },
     "flow_title": "{name}",
     "step": {
-      "bluetooth_confirm": {
-        "description": "您要设置 {name} 吗 ？"
-      },
       "cloud_auth": {
         "data": {
           "password": "密码",
@@ -37,7 +34,7 @@
       "get_encryption_key_4_5_choose_method": {
         "description": "小米设备可以通过两种方式在 Home Assistant 中设置。\n\n您可以自行输入绑定密钥，或者 Home Assistant 可以从您的小米账户导入绑定密钥。",
         "menu_options": {
-          "cloud_auth": "小米账户（暂不支持）",
+          "cloud_auth": "小米账户（不推荐）",
           "get_encryption_key_4_5": "手动输入加密密钥"
         }
       },
