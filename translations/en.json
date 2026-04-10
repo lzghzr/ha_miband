@@ -89,7 +89,7 @@
               "low_blood_oxygen": "Low Blood Oxygen",
               "high_pressure": "High Pressure",
               "abnormal_heart_beats": "Abnormal Heart Beats",
-              "unknown": "Unknown"
+              "other": "Other"
             }
           }
         }
@@ -104,7 +104,7 @@
               "calorie_goal_hit": "Calorie Goal Hit",
               "moving_goal_hit": "Moving Goal Hit",
               "standing_goal_hit": "Standing Goal Hit",
-              "unknown": "Unknown"
+              "other": "Other"
             }
           }
         }
@@ -119,7 +119,7 @@
               "sport_end": "Sport End",
               "sport_pause": "Sport Pause",
               "sport_continue": "Sport Continue",
-              "unknown": "Unknown"
+              "other": "Other"
             }
           },
           "sport_type": {

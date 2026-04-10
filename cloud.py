@@ -364,15 +364,15 @@ class XiaomiCloudTokenFetch:
             devices = await connector.get_devices(server)
             if (
                 devices is None
-                or not devices["result"]
-                or not devices["result"]["list"]
+                or "result" not in devices
+                or "list" not in devices["result"]
+                or devices["result"]["list"] is None
             ):
                 continue
             for device in devices["result"]["list"]:
                 if "detail" not in device or device["detail"]["mac"] != formatted_mac:
                     continue
-                detail = device["detail"]
-                if beacon_key := detail.get("beaconkey"):
+                if beacon_key := device["detail"].get("beaconkey"):
                     _LOGGER.debug(
                         "Found beacon key for %s: %s (%s)",
                         formatted_mac,

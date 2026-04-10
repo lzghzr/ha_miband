@@ -22,14 +22,14 @@ ABNORMAL_VITAL_SIGNS_TYPE: Final = {
     3: "low_blood_oxygen",
     4: "high_blood_pressure",
     5: "abnormal_heart_beats",
-    256: "unknown",
+    256: "other",
 }
 SPORT_EVENT_TYPE: Final = {
     0: "sport_start",
     1: "sport_end",
     2: "sport_pause",
     3: "sport_continue",
-    256: "unknown",
+    256: "other",
 }
 SPORT_TYPE: Final = {
     1: "outdoor_running",
@@ -60,13 +60,14 @@ VITALITY_GOAL_TYPE: Final = {
     2: "calorie_goal_hit",
     3: "moving_goal_hit",
     4: "standing_goal_hit",
-    256: "unknown",
+    256: "other",
 }
 
 BATTERY_CHARGING_STATE: Final = {
     0: "charging",
     1: "charging_disconnected",
     2: "charging_complete",
+    256: "other",
 }
 
 

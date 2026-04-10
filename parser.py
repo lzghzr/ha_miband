@@ -66,7 +66,7 @@ def obj4e5c(
         return {}
     device.fire_event(
         key=MiBandEventDeviceClass.ABNORMAL_SIGNS,
-        event_type=ABNORMAL_VITAL_SIGNS_TYPE.get(xobj[0], "unknown"),
+        event_type=ABNORMAL_VITAL_SIGNS_TYPE.get(xobj[0], "other"),
         event_properties=None,
     )
     return {}
@@ -79,10 +79,10 @@ def obj525b(
     if len(xobj) != 5:
         return {}
     sport_id = int.from_bytes(xobj[0:3], "little")
-    sport_type = SPORT_TYPE.get(sport_id, f"Other ({sport_id})")
+    sport_type = SPORT_TYPE.get(sport_id, f"other_{sport_id}")
     device.fire_event(
         key=MiBandEventDeviceClass.SPORTS,
-        event_type=SPORT_EVENT_TYPE.get(xobj[-1], "unknown"),
+        event_type=SPORT_EVENT_TYPE.get(xobj[-1], "other"),
         event_properties={"sport_type": sport_type},
     )
     return {}
@@ -96,7 +96,7 @@ def obj525e(
         return {}
     device.fire_event(
         key=MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
-        event_type=VITALITY_GOAL_TYPE.get(xobj[0], "unknown"),
+        event_type=VITALITY_GOAL_TYPE.get(xobj[0], "other"),
         event_properties=None,
     )
     return {}
@@ -110,7 +110,7 @@ def obj5422(
         return {}
     device.update_sensor(
         key=MiBandSensorDeviceClass.BATTERY_CHARGING,
-        native_value=BATTERY_CHARGING_STATE.get(xobj[0], "unknown"),
+        native_value=BATTERY_CHARGING_STATE.get(xobj[0], "other"),
         native_unit_of_measurement=None,
         device_class=MiBandSensorDeviceClass.BATTERY_CHARGING,
     )
