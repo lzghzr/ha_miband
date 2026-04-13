@@ -14,14 +14,10 @@
       "expected_32_characters": "需要 32 位字符的十六进制绑定密钥。"
     },
     "flow_title": "{name}",
+    "progress": {
+      "wait_for_authorization": "请点击下方地址或者扫码进行身份验证：\n{login_url}\n![login_qrcode]({image_url})\n"
+    },
     "step": {
-      "cloud_auth": {
-        "data": {
-          "password": "密码",
-          "username": "用户名"
-        },
-        "description": "请提供您的小米应用用户名和密码。此数据不会被保存，仅用于检索设备加密密钥。用户名和密码区分大小写。"
-      },
       "confirm_slow": {
         "description": "该设备在上一分钟没有广播，因此无法确定该设备是否使用加密。这可能是因为设备的广播间隔较长。如果确认仍然添加设备，则下次收到广播时，如果有需要，系统将提示您输入其绑定密钥。"
       },
@@ -34,9 +30,20 @@
       "get_encryption_key_4_5_choose_method": {
         "description": "小米设备可以通过两种方式在 Home Assistant 中设置。\n\n您可以自行输入绑定密钥，或者 Home Assistant 可以从您的小米账户导入绑定密钥。",
         "menu_options": {
-          "cloud_auth": "小米账户（不推荐）",
-          "get_encryption_key_4_5": "手动输入加密密钥"
+          "get_encryption_key_4_5": "手动输入加密密钥",
+          "password_cloud_auth": "账户密码（不推荐）",
+          "qrcode_cloud_auth": "快捷登录（推荐）"
         }
+      },
+      "password_cloud_auth": {
+        "data": {
+          "password": "密码",
+          "username": "用户名"
+        },
+        "description": "请提供您的小米应用用户名和密码。此数据不会被保存，仅用于检索设备加密密钥。用户名和密码区分大小写。"
+      },
+      "qrcode_connection_error": {
+        "description": "与 Mi API 通信时出错：connection_error"
       },
       "user": {
         "data": {
@@ -44,20 +51,6 @@
         },
         "description": "选择要设置的设备"
       }
-    }
-  },
-  "device": {
-    "smart_band_10": {
-      "name": "小米手环10"
-    },
-    "smart_band_10_nfc": {
-      "name": "小米手环10 NFC版"
-    },
-    "smart_band_10_ceramic_edition": {
-      "name": "小米手环10 陶瓷版"
-    },
-    "smart_band_10_glimmer_edition": {
-      "name": "小米手环10 耀影金特别版"
     }
   },
   "entity": {

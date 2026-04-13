@@ -1,7 +1,9 @@
 """Config flow for MiBand integration."""
 
+import asyncio
 import dataclasses
 import logging
+from dataclasses import asdict
 from typing import Any
 
 import voluptuous as vol
@@ -51,9 +53,11 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
-        self._discovery_info: BluetoothServiceInfo | None = None
         self._discovered_device: DeviceData | None = None
         self._discovered_devices: dict[str, Discovery] = {}
+        self._discovery_info: BluetoothServiceInfo | None = None
+        self._fetcher: XiaomiCloudTokenFetch | None = None
+        self._login_task: asyncio.Task | None = None
 
     async def _async_wait_for_full_advertisement(
         self, discovery_info: BluetoothServiceInfo, device: DeviceData
@@ -143,7 +147,7 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_cloud_auth(
+    async def async_step_password_cloud_auth(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle the cloud auth step."""
@@ -153,11 +157,13 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         description_placeholders: dict[str, str] = {}
         if user_input is not None:
             session = async_get_clientsession(self.hass)
-            fetcher = XiaomiCloudTokenFetch(
-                user_input[CONF_USERNAME], user_input[CONF_PASSWORD], session
+            self._fetcher = XiaomiCloudTokenFetch(session)
+            self._fetcher.set_password(
+                user_input[CONF_USERNAME],
+                user_input[CONF_PASSWORD],
             )
             try:
-                device_details = await fetcher.get_device_info(
+                device_details = await self._fetcher.get_device_info(
                     self._discovery_info.address
                 )
             except XiaomiCloudInvalidAuthenticationException as ex:
@@ -178,7 +184,7 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
 
         user_input = user_input or {}
         return self.async_show_form(
-            step_id="cloud_auth",
+            step_id="password_cloud_auth",
             errors=errors,
             data_schema=vol.Schema(
                 {
@@ -194,13 +200,94 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_qrcode_cloud_auth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if self._fetcher is None:
+            session = async_get_clientsession(self.hass)
+            self._fetcher = XiaomiCloudTokenFetch(session)
+
+        try:
+            login_qrcode = await self._fetcher.get_login_qrcode()
+        except XiaomiCloudInvalidAuthenticationException as ex:
+            _LOGGER.debug("Failed to connect to MI API: %s", ex, exc_info=True)
+            raise AbortFlow(
+                "api_error", description_placeholders={"error_detail": str(ex)}
+            ) from ex
+
+        async def _wait_for_authorization() -> None:
+            _LOGGER.debug("Waiting for device authorization")
+            try:
+                self._device_details = await self._fetcher.get_device_info(
+                    self._discovery_info.address
+                )
+                _LOGGER.debug("Authorization successful")
+            except XiaomiCloudInvalidAuthenticationException as ex:
+                _LOGGER.debug("Failed to connect to MI API: %s", ex, exc_info=True)
+                raise AbortFlow(
+                    "api_error", description_placeholders={"error_detail": str(ex)}
+                ) from ex
+
+        if self._login_task is None:
+            _LOGGER.debug("Creating task for device authorization")
+            self._login_task = self.hass.async_create_task(_wait_for_authorization())
+
+        if self._login_task.done():
+            _LOGGER.debug("Login task is done, checking results")
+            if exception := self._login_task.exception():
+                if isinstance(exception, AbortFlow):
+                    return self.async_show_progress_done(
+                        next_step_id="qrcode_connection_error"
+                    )
+                return self.async_show_progress_done(
+                    next_step_id="qrcode_connection_error"
+                )
+            return self.async_show_progress_done(next_step_id="qrcode_finish_login")
+
+        return self.async_show_progress(
+            step_id="qrcode_cloud_auth",
+            progress_action="wait_for_authorization",
+            description_placeholders=asdict(login_qrcode),
+            progress_task=self._login_task,
+        )
+
+    async def async_step_qrcode_finish_login(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the finalization of login."""
+        _LOGGER.debug("Finalizing authorization")
+        if self._device_details:
+            return await self.async_step_get_encryption_key_4_5(
+                {"bindkey": self._device_details.bindkey}
+            )
+        return self.async_abort(reason="no_devices_found")
+
+    async def async_step_qrcode_connection_error(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle connection error from progress step."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="qrcode_connection_error",
+                description_placeholders=self.context["title_placeholders"],
+            )
+        # Reset state and try again
+        self._device_details = None
+        self._fetcher = None
+        self._login_task = None
+        return await self.async_step_get_encryption_key_4_5_choose_method()
+
     async def async_step_get_encryption_key_4_5_choose_method(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Choose method to get the bind key for a version 4/5 device."""
         return self.async_show_menu(
             step_id="get_encryption_key_4_5_choose_method",
-            menu_options=["cloud_auth", "get_encryption_key_4_5"],
+            menu_options=[
+                "qrcode_cloud_auth",
+                "password_cloud_auth",
+                "get_encryption_key_4_5",
+            ],
             description_placeholders=self.context["title_placeholders"],
         )
 

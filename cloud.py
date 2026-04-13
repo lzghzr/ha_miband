@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import base64
 import hashlib
 import hmac
@@ -41,18 +42,19 @@ _LOGGER = logging.getLogger(__name__)
 # SOFTWARE.
 
 
-LOGIN_URL = URL(
-    "https://account.xiaomi.com/pass/serviceLogin?sid=miothealth&_json=true"
-)
-LOGIN_URL2 = URL("https://account.xiaomi.com/pass/serviceLoginAuth2")
-
-
 @dataclass
 class XiaomiCloudBLEDevice:
 
     name: str
     mac: str
     bindkey: str
+
+
+@dataclass
+class XiaomiCloudQrCode:
+
+    image_url: str
+    login_url: str
 
 
 class XiaomiCloudException(Exception):
@@ -82,103 +84,19 @@ class XiaomiCloudTwoFactorAuthenticationException(
         self.url = url
 
 
-class XiaomiCloudConnector:
-    """Encapsulates Xiaomi Cloud API."""
+class XiaomiCloudConnector(ABC):
 
-    def __init__(
-        self, username: str, password: str, session: aiohttp.ClientSession
-    ) -> None:
-        """Initialize the Xiaomi Cloud API."""
-        self._username = username
-        self._password = password
+    def __init__(self, session: aiohttp.ClientSession):
+        self.userId = None
         self._agent = self.generate_agent()
         self._device_id = self.generate_device_id()
+        self._serviceToken = None
         self._session = session
-        self._sign: str | None = None
-        self._ssecurity: str | None = None
-        self.userId: str | None = None
-        self._cUserId: str | None = None
-        self._passToken: str | None = None
-        self._location: str | None = None
-        self._code: str | None = None
-        self._serviceToken: str | None = None
+        self._ssecurity = None
 
-    async def _login_step_1(self) -> bool:
-        headers = {
-            "User-Agent": self._agent,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        cookies = {**self._cookies, "userId": self._username}
-        response = await self._session.get(LOGIN_URL, headers=headers, cookies=cookies)
-        valid = response.status == 200 and "_sign" in self.to_json(
-            await response.text()
-        )
-        if valid:
-            self._sign = self.to_json(await response.text())["_sign"]
-        return valid
-
-    async def _login_step_2(self) -> bool:
-        url = LOGIN_URL2
-        headers = {
-            "User-Agent": self._agent,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        fields = {
-            "sid": "miothealth",
-            "hash": hashlib.md5(str.encode(self._password)).hexdigest().upper(),
-            "callback": "https://sts-hlth.io.mi.com/healthapp/sts",
-            "qs": "%3Fsid%3Dmiothealth%26_json%3Dtrue",
-            "user": self._username,
-            "_sign": self._sign,
-            "_json": "true",
-        }
-        response = await self._session.post(
-            url, headers=headers, params=fields, cookies=self._cookies
-        )
-        valid = response is not None and response.status == 200
-        if valid:
-            json_resp = self.to_json(await response.text())
-            valid = "ssecurity" in json_resp and len(str(json_resp["ssecurity"])) > 4
-            if valid:
-                self._ssecurity = json_resp["ssecurity"]
-                self.userId = json_resp["userId"]
-                self._cUserId = json_resp["cUserId"]
-                self._passToken = json_resp["passToken"]
-                self._location = json_resp["location"]
-                self._code = json_resp["code"]
-            elif "notificationUrl" in json_resp:
-                raise XiaomiCloudTwoFactorAuthenticationException(
-                    "Two factor authentication required.", json_resp["notificationUrl"]
-                )
-        return valid
-
-    async def _login_step_3(self) -> bool:
-        headers = {
-            "User-Agent": self._agent,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        response = await self._session.get(
-            self._location, headers=headers, cookies=self._cookies
-        )
-        if response.status == 200:
-            self._serviceToken = response.cookies.get("serviceToken").value
-        return response.status == 200
-
+    @abstractmethod
     async def login(self) -> bool:
-        self._cookies = {
-            "sdkVersion": "accountsdk-18.8.15",
-            "deviceId": self._device_id,
-        }
-        if not await self._login_step_1():
-            raise XiaomiCloudInvalidUsernameException("Invalid username.")
-
-        if not await self._login_step_2():
-            raise XiaomiCloudInvalidPasswordException("Invalid password.")
-
-        if not await self._login_step_3():
-            raise XiaomiCloudException("Unable to get service token.")
-
-        return True
+        pass
 
     async def get_devices(self, country: str) -> dict[str, Any] | None:
         url = self.get_api_url(country) + "/v1/source/get_source_list"
@@ -204,25 +122,21 @@ class XiaomiCloudConnector:
             "is_daylight": "1",
             "dst_offset": "3600000",
             "channel": "MI_APP_STORE",
-            **self._cookies,
         }
         millis = round(time.time() * 1000)
         nonce = self.generate_nonce(millis)
         signed_nonce = self.signed_nonce(nonce)
-        assert self._ssecurity is not None
         fields = self.generate_enc_params(
             url, "POST", signed_nonce, nonce, params, self._ssecurity
         )
         response = await self._session.post(
             url, headers=headers, cookies=cookies, params=fields
         )
-        if response.status == 200:
+        if response is not None and response.status == 200:
             decoded = self.decrypt_rc4(
                 self.signed_nonce(fields["_nonce"]), await response.text()
             )
             return orjson.loads(decoded)
-        if response.status > 400 and response.status < 500:
-            raise XiaomiCloudInvalidAuthenticationException("Authentication failed")
         return None
 
     @staticmethod
@@ -234,7 +148,6 @@ class XiaomiCloudConnector:
         )
 
     def signed_nonce(self, nonce: str) -> str:
-        assert self._ssecurity is not None
         hash_object = hashlib.sha256(
             base64.b64decode(self._ssecurity) + base64.b64decode(nonce)
         )
@@ -257,7 +170,10 @@ class XiaomiCloudConnector:
         agent_id = "".join(
             map(lambda i: chr(i), [random.randint(65, 69) for _ in range(13)])
         )
-        return f"Android-7.1.1-1.0.0-ONEPLUS A3010-136-{agent_id} APP/xiaomi.smarthome APPV/62830"  # noqa
+        random_text = "".join(
+            map(lambda i: chr(i), [random.randint(97, 122) for _ in range(18)])
+        )
+        return f"{random_text}-{agent_id} APP/com.xiaomi.mihome APPV/10.5.201"
 
     @staticmethod
     def generate_device_id() -> str:
@@ -269,7 +185,7 @@ class XiaomiCloudConnector:
     def generate_signature(
         url: str, signed_nonce: str, nonce: str, params: dict[str, Any]
     ) -> str:
-        signature_params: list[str] = [url.split("com")[1], signed_nonce, nonce]
+        signature_params = [url.split("com")[1], signed_nonce, nonce]
         for k, v in params.items():
             signature_params.append(f"{k}={v}")
         signature_string = "&".join(signature_params)
@@ -284,10 +200,7 @@ class XiaomiCloudConnector:
     def generate_enc_signature(
         url: str, method: str, signed_nonce: str, params: dict[str, Any]
     ) -> str:
-        signature_params: list[str] = [
-            str(method).upper(),
-            url.split("com")[1],
-        ]
+        signature_params = [str(method).upper(), url.split("com")[1]]
         for k, v in params.items():
             signature_params.append(f"{k}={v}")
         signature_params.append(signed_nonce)
@@ -323,45 +236,243 @@ class XiaomiCloudConnector:
 
     @staticmethod
     def to_json(response_text: str) -> dict[str, Any]:
-        """Convert a response to a JSON object."""
         return orjson.loads(response_text.replace("&&&START&&&", ""))
 
     @staticmethod
     def encrypt_rc4(password: str, payload: str) -> str:
-        """Encrypt a piece of data."""
         r = ARC4.new(base64.b64decode(password))
         r.encrypt(bytes(1024))
         return base64.b64encode(r.encrypt(payload.encode())).decode()
 
     @staticmethod
     def decrypt_rc4(password: str, payload: str) -> str:
-        """Decrypt a piece of data."""
         r = ARC4.new(base64.b64decode(password))
         r.encrypt(bytes(1024))
         return r.encrypt(base64.b64decode(payload))
 
 
-class XiaomiCloudTokenFetch:
+class PasswordXiaomiCloudConnector(XiaomiCloudConnector):
+    """Encapsulates Xiaomi Cloud API."""
 
     def __init__(
         self, username: str, password: str, session: aiohttp.ClientSession
     ) -> None:
         """Initialize the Xiaomi Cloud API."""
+        super().__init__(session)
         self._username = username
         self._password = password
+        self._code: str | None = None
+        self._cUserId: str | None = None
+        self._location: str | None = None
+        self._passToken: str | None = None
+        self._sign: str | None = None
+
+    async def _login_step_1(self) -> bool:
+        url = "https://account.xiaomi.com/pass/serviceLogin?sid=miothealth&_json=true"
+        headers = {
+            "User-Agent": self._agent,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        cookies = {**self._cookies, "userId": self._username}
+        response = await self._session.get(url, headers=headers, cookies=cookies)
+        valid = response is not None and response.status == 200
+        if valid:
+            json_resp = self.to_json(await response.text())
+            if "_sign" in json_resp:
+                self._sign = json_resp["_sign"]
+            elif "ssecurity" in json_resp:
+                self._ssecurity = json_resp["ssecurity"]
+                self.userId = json_resp["userId"]
+                self._cUserId = json_resp["cUserId"]
+                self._passToken = json_resp["passToken"]
+                self._location = json_resp["location"]
+                self._code = json_resp["code"]
+        return valid
+
+    async def _login_step_2(self) -> bool:
+        url = "https://account.xiaomi.com/pass/serviceLoginAuth2"
+        headers = {
+            "User-Agent": self._agent,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        fields = {
+            "sid": "miothealth",
+            "hash": hashlib.md5(str.encode(self._password)).hexdigest().upper(),
+            "callback": "https://sts-hlth.io.mi.com/healthapp/sts",
+            "qs": "%3Fsid%3Dmiothealth%26_json%3Dtrue",
+            "user": self._username,
+            "_sign": self._sign,
+            "_json": "true",
+        }
+        response = await self._session.post(
+            url,
+            headers=headers,
+            params=fields,
+            cookies=self._cookies,
+            allow_redirects=False,
+        )
+        valid = response is not None and response.status == 200
+        if valid:
+            json_resp = self.to_json(await response.text())
+            valid = "ssecurity" in json_resp and len(str(json_resp["ssecurity"])) > 4
+            if valid:
+                self._ssecurity = json_resp["ssecurity"]
+                self.userId = json_resp.get("userId", None)
+                self._cUserId = json_resp.get("cUserId", None)
+                self._passToken = json_resp.get("passToken", None)
+                self._location = json_resp.get("location", None)
+                self._code = json_resp.get("code", None)
+            elif "notificationUrl" in json_resp:
+                raise XiaomiCloudTwoFactorAuthenticationException(
+                    "Two factor authentication required.", json_resp["notificationUrl"]
+                )
+        return valid
+
+    async def _login_step_3(self) -> bool:
+        headers = {
+            "User-Agent": self._agent,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        response = await self._session.get(
+            self._location, headers=headers, cookies=self._cookies
+        )
+        if response.status == 200:
+            self._serviceToken = response.cookies.get("serviceToken").value
+        return response.status == 200
+
+    async def login(self) -> bool:
+        self._cookies = {
+            "sdkVersion": "accountsdk-18.8.15",
+            "deviceId": self._device_id,
+        }
+        if not await self._login_step_1():
+            raise XiaomiCloudInvalidUsernameException("Invalid username.")
+
+        if not await self._login_step_2():
+            raise XiaomiCloudInvalidPasswordException("Invalid password.")
+
+        if not await self._login_step_3():
+            raise XiaomiCloudException("Unable to get service token.")
+
+        return True
+
+
+class QrCodeXiaomiCloudConnector(XiaomiCloudConnector):
+
+    def __init__(self, session: aiohttp.ClientSession):
+        super().__init__(session)
+        self._cUserId = None
+        self._location = None
+        self._login_url = None
+        self._long_polling_url = None
+        self._pass_token = None
+        self._qr_image_url = None
+
+    async def _login_step_1(self) -> bool:
+        url = "https://account.xiaomi.com/longPolling/loginUrl"
+        data = {
+            "_qrsize": "480",
+            "qs": "%3Fsid%3Dmiothealth%26_json%3Dtrue",
+            "callback": "https://sts-hlth.io.mi.com/healthapp/sts",
+            "_hasLogo": "false",
+            "sid": "miothealth",
+            "serviceParam": "",
+            "_locale": "en_GB",
+            "_dc": str(int(time.time() * 1000)),
+        }
+        response = await self._session.get(url, params=data)
+        valid = response is not None and response.status == 200
+        if valid:
+            response_data = self.to_json(await response.text())
+            if "qr" in response_data:
+                self._qr_image_url = response_data["qr"]
+                self._login_url = response_data["loginUrl"]
+                self._long_polling_url = response_data["lp"]
+                self._timeout = response_data["timeout"]
+        return valid
+
+    async def _login_step_2(self) -> bool:
+        start_time = time.time()
+        if time.time() - start_time > self._timeout:
+            return False
+        response = await self._session.get(
+            self._long_polling_url, timeout=self._timeout
+        )
+        valid = response is not None and response.status == 200
+        if valid:
+            response_data = self.to_json(await response.text())
+            self.userId = response_data["userId"]
+            self._ssecurity = response_data["ssecurity"]
+            self._cUserId = response_data["cUserId"]
+            self._pass_token = response_data["passToken"]
+            self._location = response_data["location"]
+        return valid
+
+    async def _login_step_3(self) -> bool:
+        if not self._location:
+            return False
+        headers = {
+            "User-Agent": self._agent,
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        response = await self._session.get(self._location, headers=headers)
+        valid = response is not None and response.status == 200
+        if valid:
+            self._serviceToken = response.cookies.get("serviceToken").value
+        return valid
+
+    async def get_login_qrcode(self) -> XiaomiCloudQrCode:
+        if not await self._login_step_1():
+            raise XiaomiCloudInvalidAuthenticationException("Unable to get login url.")
+        return XiaomiCloudQrCode(self._qr_image_url, self._login_url)
+
+    async def login(self) -> bool:
+        if not await self._login_step_2():
+            raise XiaomiCloudInvalidAuthenticationException(
+                "Unable to get login token."
+            )
+        if not await self._login_step_3():
+            raise XiaomiCloudInvalidAuthenticationException(
+                "Unable to get service token."
+            )
+        return True
+
+
+class XiaomiCloudTokenFetch:
+
+    def __init__(self, session: aiohttp.ClientSession) -> None:
+        """Initialize the Xiaomi Cloud API."""
+        self._connector: XiaomiCloudConnector | None = None
         self._session = session
+
+    def set_password(
+        self,
+        username: str,
+        password: str,
+    ) -> None:
+        """Set username and password."""
+        self._username = username
+        self._password = password
+
+    async def get_login_qrcode(self) -> XiaomiCloudQrCode:
+        """Get login url."""
+        self._connector = QrCodeXiaomiCloudConnector(self._session)
+        return await self._connector.get_login_qrcode()
 
     async def get_device_info(
         self, mac: str, servers: list[str] = SERVERS
     ) -> XiaomiCloudBLEDevice | None:
         """Get the token for a given MAC address."""
         formatted_mac = format_mac_upper(mac)
-        connector = XiaomiCloudConnector(self._username, self._password, self._session)
-        await connector.login()
-        assert connector.userId is not None
+        if not self._connector:
+            self._connector = PasswordXiaomiCloudConnector(
+                self._username, self._password, self._session
+            )
+        await self._connector.login()
+        assert self._connector.userId is not None
 
         for server in servers:
-            devices = await connector.get_devices(server)
+            devices = await self._connector.get_devices(server)
             if (
                 devices is None
                 or "result" not in devices

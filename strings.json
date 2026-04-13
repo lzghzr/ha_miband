@@ -14,14 +14,10 @@
       "expected_32_characters": "Expected a 32 character hexadecimal bindkey."
     },
     "flow_title": "{name}",
+    "progress": {
+      "wait_for_authorization": "Please click the link below or scan the QR code to authenticate:\n{login_url}\n![login_qrcode]({image_url})\n"
+    },
     "step": {
-      "cloud_auth": {
-        "data": {
-          "password": "Password",
-          "username": "Username"
-        },
-        "description": "Please provide your Mi app username and password. This data won't be saved and only used to retrieve the device encryption key. Usernames and passwords are case sensitive."
-      },
       "confirm_slow": {
         "description": "There hasn't been a broadcast from this device in the last minute so we aren't sure if this device uses encryption or not. This may be because the device uses a slow broadcast interval. Confirm to add this device anyway, then the next time a broadcast is received you will be prompted to enter its bindkey if it's needed."
       },
@@ -34,9 +30,20 @@
       "get_encryption_key_4_5_choose_method": {
         "description": "A Mi device can be set up in Home Assistant in two different ways.\n\nYou can enter the bindkey yourself, or Home Assistant can import them from your Mi account.",
         "menu_options": {
-          "cloud_auth": "Mi account (not recommended)",
-          "get_encryption_key_4_5": "Enter encryption key manually"
+          "get_encryption_key_4_5": "Enter encryption key manually",
+          "password_cloud_auth": "Ues Password (not recommended)",
+          "qrcode_cloud_auth": "Quick Login (recommended)"
         }
+      },
+      "password_cloud_auth": {
+        "data": {
+          "password": "Password",
+          "username": "Username"
+        },
+        "description": "Please provide your Mi app username and password. This data won't be saved and only used to retrieve the device encryption key. Usernames and passwords are case sensitive."
+      },
+      "qrcode_connection_error": {
+        "description": "Error while communicating with Mi API: connection_error"
       },
       "user": {
         "data": {
