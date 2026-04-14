@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import base64
 import hashlib
 import hmac
@@ -6,6 +5,7 @@ import logging
 import os
 import random
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
@@ -93,6 +93,10 @@ class XiaomiCloudConnector(ABC):
         self._serviceToken = None
         self._session = session
         self._ssecurity = None
+        self._cookies = {
+            "sdkVersion": "accountsdk-18.8.15",
+            "deviceId": self._device_id,
+        }
 
     @abstractmethod
     async def login(self) -> bool:
@@ -341,10 +345,6 @@ class PasswordXiaomiCloudConnector(XiaomiCloudConnector):
         return response.status == 200
 
     async def login(self) -> bool:
-        self._cookies = {
-            "sdkVersion": "accountsdk-18.8.15",
-            "deviceId": self._device_id,
-        }
         if not await self._login_step_1():
             raise XiaomiCloudInvalidUsernameException("Invalid username.")
 
@@ -440,19 +440,17 @@ class QrCodeXiaomiCloudConnector(XiaomiCloudConnector):
 
 class XiaomiCloudTokenFetch:
 
-    def __init__(self, session: aiohttp.ClientSession) -> None:
+    def __init__(
+        self,
+        username: str | None = None,
+        password: str | None = None,
+        session: aiohttp.ClientSession | None = None,
+    ) -> None:
         """Initialize the Xiaomi Cloud API."""
         self._connector: XiaomiCloudConnector | None = None
-        self._session = session
-
-    def set_password(
-        self,
-        username: str,
-        password: str,
-    ) -> None:
-        """Set username and password."""
         self._username = username
         self._password = password
+        self._session = session
 
     async def get_login_qrcode(self) -> XiaomiCloudQrCode:
         """Get login url."""

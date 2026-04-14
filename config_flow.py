@@ -157,10 +157,8 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         description_placeholders: dict[str, str] = {}
         if user_input is not None:
             session = async_get_clientsession(self.hass)
-            self._fetcher = XiaomiCloudTokenFetch(session)
-            self._fetcher.set_password(
-                user_input[CONF_USERNAME],
-                user_input[CONF_PASSWORD],
+            self._fetcher = XiaomiCloudTokenFetch(
+                user_input[CONF_USERNAME], user_input[CONF_PASSWORD], session
             )
             try:
                 device_details = await self._fetcher.get_device_info(
@@ -205,7 +203,7 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         if self._fetcher is None:
             session = async_get_clientsession(self.hass)
-            self._fetcher = XiaomiCloudTokenFetch(session)
+            self._fetcher = XiaomiCloudTokenFetch(session=session)
 
         try:
             login_qrcode = await self._fetcher.get_login_qrcode()
