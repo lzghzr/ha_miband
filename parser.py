@@ -26,6 +26,7 @@ from home_assistant_bluetooth import BluetoothServiceInfo
 from .const import (
     ABNORMAL_VITAL_SIGNS_TYPE,
     BATTERY_CHARGING_STATE,
+    HAND_GESTURE_TYPE,
     SERVICE_MIBEACON,
     SPORT_EVENT_TYPE,
     SPORT_TYPE,
@@ -58,21 +59,50 @@ def parse_event_properties(
     return None
 
 
-def obj4e5c(
+def eiid1016(
     xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
 ) -> dict[str, Any]:
-    """Abnormal Signs"""
+    """Sleep"""
+    if len(xobj) != 1:
+        return {}
+    device.update_binary_sensor(
+        key=MiBandBinarySensorDeviceClass.SLEEP,
+        native_value=xobj[0],
+        device_class=MiBandBinarySensorDeviceClass.SLEEP,
+    )
+    return {}
+
+
+def eiid1034(
+    xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
+) -> dict[str, Any]:
+    """Battery Charging"""
+    if len(xobj) != 1:
+        return {}
+    device.update_sensor(
+        key=MiBandSensorDeviceClass.BATTERY_CHARGING,
+        native_value=BATTERY_CHARGING_STATE.get(xobj[0], "other"),
+        native_unit_of_measurement=None,
+        device_class=MiBandSensorDeviceClass.BATTERY_CHARGING,
+    )
+    return {}
+
+
+def eiid1086(
+    xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
+) -> dict[str, Any]:
+    """Hand Gesture"""
     if len(xobj) != 1:
         return {}
     device.fire_event(
-        key=MiBandEventDeviceClass.ABNORMAL_SIGNS,
-        event_type=ABNORMAL_VITAL_SIGNS_TYPE.get(xobj[0], "other"),
+        key=MiBandEventDeviceClass.HAND_GESTURE,
+        event_type=HAND_GESTURE_TYPE.get(xobj[0], "other"),
         event_properties=None,
     )
     return {}
 
 
-def obj525b(
+def eiid1091(
     xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
 ) -> dict[str, Any]:
     """Sports"""
@@ -88,7 +118,21 @@ def obj525b(
     return {}
 
 
-def obj525e(
+def eiid1092(
+    xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
+) -> dict[str, Any]:
+    """Abnormal Signs"""
+    if len(xobj) != 1:
+        return {}
+    device.fire_event(
+        key=MiBandEventDeviceClass.ABNORMAL_SIGNS,
+        event_type=ABNORMAL_VITAL_SIGNS_TYPE.get(xobj[0], "other"),
+        event_properties=None,
+    )
+    return {}
+
+
+def eiid1094(
     xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
 ) -> dict[str, Any]:
     """Daily Vitality Index"""
@@ -102,36 +146,7 @@ def obj525e(
     return {}
 
 
-def obj5422(
-    xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
-) -> dict[str, Any]:
-    """Battery Charging"""
-    if len(xobj) != 1:
-        return {}
-    device.update_sensor(
-        key=MiBandSensorDeviceClass.BATTERY_CHARGING,
-        native_value=BATTERY_CHARGING_STATE.get(xobj[0], "other"),
-        native_unit_of_measurement=None,
-        device_class=MiBandSensorDeviceClass.BATTERY_CHARGING,
-    )
-    return {}
-
-
-def obj5810(
-    xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
-) -> dict[str, Any]:
-    """Sleep"""
-    if len(xobj) != 1:
-        return {}
-    device.update_binary_sensor(
-        key=MiBandBinarySensorDeviceClass.SLEEP,
-        native_value=xobj[0],
-        device_class=MiBandBinarySensorDeviceClass.SLEEP,
-    )
-    return {}
-
-
-def obj6461(
+def eiid1097(
     xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
 ) -> dict[str, Any]:
     """Wearing"""
@@ -147,13 +162,24 @@ def obj6461(
 
 # Dataobject dictionary
 # {dataObject_id: (converter}
+# maybe
+# property_id = eiid + 0x400 * siid + 0x3C18
+# event_id = eiid + 0x400 * siid + 0x3E18
 xiaomi_dataobject_dict = {
-    0x4E5C: obj4e5c,
-    0x525B: obj525b,
-    0x525E: obj525e,
-    0x5422: obj5422,
-    0x5810: obj5810,
-    0x6461: obj6461,
+    0x4810: eiid1016,
+    0x5810: eiid1016,
+    0x5422: eiid1034,
+    0x5822: eiid1034,
+    0x5656: eiid1086,
+    0x4E5B: eiid1091,
+    0x525B: eiid1091,
+    0x4E5C: eiid1092,
+    0x525C: eiid1092,
+    0x4E5E: eiid1094,
+    0x525E: eiid1094,
+    0x5C61: eiid1097,
+    0x6461: eiid1097,
+    0x6C61: eiid1097,
 }
 
 

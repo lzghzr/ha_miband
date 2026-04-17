@@ -24,6 +24,12 @@ ABNORMAL_VITAL_SIGNS_TYPE: Final = {
     5: "abnormal_heart_beats",
     256: "other",
 }
+HAND_GESTURE_TYPE: Final = {
+    0: "shake_wrist",
+    1: "wrists_outward_and_inward",
+    2: "snap_fingers",
+    256: "other",
+}
 SPORT_EVENT_TYPE: Final = {
     0: "sport_start",
     1: "sport_end",
@@ -83,6 +89,7 @@ class MiBandSensorDeviceClass(StrEnum):
 class MiBandEventDeviceClass(StrEnum):
     ABNORMAL_SIGNS = "abnormal_signs"
     DAILY_VITALITY_INDEX = "daily_vitality_index"
+    HAND_GESTURE = "hand_gesture"
     SPORTS = "sports"
 
 

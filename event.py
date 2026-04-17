@@ -13,6 +13,7 @@ from . import format_discovered_event_class, format_event_dispatcher_name
 from .const import (
     ABNORMAL_VITAL_SIGNS_TYPE,
     DOMAIN,
+    HAND_GESTURE_TYPE,
     EVENT_PROPERTIES,
     EVENT_TYPE,
     SPORT_EVENT_TYPE,
@@ -33,6 +34,11 @@ EVENT_DESCRIPTIONS = {
         key=MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
         event_types=list(VITALITY_GOAL_TYPE.values()),
         translation_key=MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+    ),
+    MiBandEventDeviceClass.HAND_GESTURE: EventEntityDescription(
+        key=MiBandEventDeviceClass.HAND_GESTURE,
+        event_types=list(HAND_GESTURE_TYPE.values()),
+        translation_key=MiBandEventDeviceClass.HAND_GESTURE,
     ),
     MiBandEventDeviceClass.SPORTS: EventEntityDescription(
         key=MiBandEventDeviceClass.SPORTS,

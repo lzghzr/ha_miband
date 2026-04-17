@@ -44,7 +44,6 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class XiaomiCloudBLEDevice:
-
     name: str
     mac: str
     bindkey: str
@@ -52,7 +51,6 @@ class XiaomiCloudBLEDevice:
 
 @dataclass
 class XiaomiCloudQrCode:
-
     image_url: str
     login_url: str
 
@@ -85,7 +83,6 @@ class XiaomiCloudTwoFactorAuthenticationException(
 
 
 class XiaomiCloudConnector(ABC):
-
     def __init__(self, session: aiohttp.ClientSession):
         self.userId = None
         self._agent = self.generate_agent()
@@ -358,7 +355,6 @@ class PasswordXiaomiCloudConnector(XiaomiCloudConnector):
 
 
 class QrCodeXiaomiCloudConnector(XiaomiCloudConnector):
-
     def __init__(self, session: aiohttp.ClientSession):
         super().__init__(session)
         self._cUserId = None
@@ -439,7 +435,6 @@ class QrCodeXiaomiCloudConnector(XiaomiCloudConnector):
 
 
 class XiaomiCloudTokenFetch:
-
     def __init__(
         self,
         username: str | None = None,
@@ -509,7 +504,8 @@ def format_mac_upper(mac: str) -> str:
     if len(to_test) == 12:
         # no : included
         return ":".join(
-            to_test.upper()[i : i + 2] for i in range(0, 12, 2)  # noqa: E203
+            to_test.upper()[i : i + 2]
+            for i in range(0, 12, 2)  # noqa: E203
         )
 
     # Not sure how formatted, return original

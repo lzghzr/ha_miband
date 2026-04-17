@@ -43,6 +43,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -57,6 +58,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -71,6 +73,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -85,6 +88,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -99,6 +103,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -113,6 +118,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -127,6 +133,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -141,6 +148,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -183,6 +191,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -197,6 +206,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -253,6 +263,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],

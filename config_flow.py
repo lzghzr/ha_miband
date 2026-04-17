@@ -232,13 +232,9 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if self._login_task.done():
             _LOGGER.debug("Login task is done, checking results")
-            if exception := self._login_task.exception():
-                if isinstance(exception, AbortFlow):
-                    return self.async_show_progress_done(
-                        next_step_id="qrcode_connection_error"
-                    )
+            if self._login_task.exception():
                 return self.async_show_progress_done(
-                    next_step_id="qrcode_connection_error"
+                    next_step_id="qrcode_connection_failed"
                 )
             return self.async_show_progress_done(next_step_id="qrcode_finish_login")
 
@@ -260,13 +256,13 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
             )
         return self.async_abort(reason="no_devices_found")
 
-    async def async_step_qrcode_connection_error(
+    async def async_step_qrcode_connection_failed(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle connection error from progress step."""
         if user_input is None:
             return self.async_show_form(
-                step_id="qrcode_connection_error",
+                step_id="qrcode_connection_failed",
                 description_placeholders=self.context["title_placeholders"],
             )
         # Reset state and try again

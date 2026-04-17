@@ -15,7 +15,7 @@
     },
     "flow_title": "{name}",
     "progress": {
-      "wait_for_authorization": "Please click the link below or scan the QR code to authenticate:\n{login_url}\n![login_qrcode]({image_url})\n"
+      "wait_for_authorization": "Please click the link below or scan the QR code to authenticate:\n[login_url](login_url)\n![login_qrcode]({image_url})\n"
     },
     "step": {
       "confirm_slow": {
@@ -42,8 +42,8 @@
         },
         "description": "Please provide your Mi app username and password. This data won't be saved and only used to retrieve the device encryption key. Usernames and passwords are case sensitive."
       },
-      "qrcode_connection_error": {
-        "description": "Error while communicating with Mi API: connection_error"
+      "qrcode_connection_failed": {
+        "description": "Error while communicating with Mi API. Please try again."
       },
       "user": {
         "data": {
@@ -97,6 +97,19 @@
               "calorie_goal_hit": "Calorie Goal Hit",
               "moving_goal_hit": "Moving Goal Hit",
               "standing_goal_hit": "Standing Goal Hit",
+              "other": "Other"
+            }
+          }
+        }
+      },
+      "hand_gesture": {
+        "name": "Hand Gesture",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "shake_wrist": "Shake Wrist",
+              "wrists_outward_and_inward": "Wrists Outward And Inward",
+              "snap_fingers": "Snap Fingers",
               "other": "Other"
             }
           }

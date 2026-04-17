@@ -15,7 +15,7 @@
     },
     "flow_title": "{name}",
     "progress": {
-      "wait_for_authorization": "请点击下方地址或者扫码进行身份验证：\n{login_url}\n![login_qrcode]({image_url})\n"
+      "wait_for_authorization": "请点击下方地址或者扫码进行身份验证：\n[login_url](login_url)\n![login_qrcode]({image_url})\n"
     },
     "step": {
       "confirm_slow": {
@@ -42,8 +42,8 @@
         },
         "description": "请提供您的小米应用用户名和密码。此数据不会被保存，仅用于检索设备加密密钥。用户名和密码区分大小写。"
       },
-      "qrcode_connection_error": {
-        "description": "与 Mi API 通信时出错：connection_error"
+      "qrcode_connection_failed": {
+        "description": "与 Mi API 通信时出错，请重试。"
       },
       "user": {
         "data": {
@@ -97,6 +97,19 @@
               "calorie_goal_hit": "卡路里目标达成",
               "moving_goal_hit": "中高强度活动目标达成",
               "standing_goal_hit": "站立活动目标达成",
+              "other": "其它"
+            }
+          }
+        }
+      },
+      "hand_gesture": {
+        "name": "手势",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "shake_wrist": "快速晃动手腕",
+              "wrists_outward_and_inward": "向外向内翻腕",
+              "snap_fingers": "响指（搓手指）",
               "other": "其它"
             }
           }
