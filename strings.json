@@ -15,7 +15,7 @@
     },
     "flow_title": "{name}",
     "progress": {
-      "wait_for_authorization": "Please click the link below or scan the QR code to authenticate:\n[login_url](login_url)\n![login_qrcode]({image_url})\n"
+      "wait_for_authorization": "Please click the link below or scan the QR code to authenticate:\n[{login_url}]({login_url})\n![login_qrcode]({image_url})\n"
     },
     "step": {
       "confirm_slow": {

@@ -15,7 +15,7 @@
     },
     "flow_title": "{name}",
     "progress": {
-      "wait_for_authorization": "请点击下方地址或者扫码进行身份验证：\n[login_url](login_url)\n![login_qrcode]({image_url})\n"
+      "wait_for_authorization": "请点击下方地址或者扫码进行身份验证：\n[{login_url}]({login_url})\n![login_qrcode]({image_url})\n"
     },
     "step": {
       "confirm_slow": {

@@ -1,7 +1,7 @@
 {
   "domain": "miband",
   "name": "MiBand",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "bluetooth": [
     {
       "connectable": false,
