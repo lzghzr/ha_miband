@@ -1,7 +1,5 @@
 """Constants for the MiBand integration."""
 
-from __future__ import annotations
-
 from typing import Final, TypedDict
 from enum import StrEnum
 
@@ -28,6 +26,13 @@ HAND_GESTURE_TYPE: Final = {
     0: "shake_wrist",
     1: "wrists_outward_and_inward",
     2: "snap_fingers",
+    256: "other",
+}
+MODE_TYPE: Final = {
+    0: "mute_on",
+    1: "mute_off",
+    2: "no_disturb_on",
+    3: "no_disturb_off",
     256: "other",
 }
 SPORT_EVENT_TYPE: Final = {
@@ -78,6 +83,8 @@ BATTERY_CHARGING_STATE: Final = {
 
 
 class MiBandBinarySensorDeviceClass(StrEnum):
+    MUTE = "mute"
+    NODISTURB = "no_disturb"
     SLEEP = "sleep"
     WEARING = "wearing"
 
@@ -89,6 +96,7 @@ class MiBandSensorDeviceClass(StrEnum):
 class MiBandEventDeviceClass(StrEnum):
     ABNORMAL_SIGNS = "abnormal_signs"
     DAILY_VITALITY_INDEX = "daily_vitality_index"
+    MODE = "mode"
     HAND_GESTURE = "hand_gesture"
     SPORTS = "sports"
 

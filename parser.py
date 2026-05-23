@@ -26,6 +26,7 @@ from home_assistant_bluetooth import BluetoothServiceInfo
 from .const import (
     ABNORMAL_VITAL_SIGNS_TYPE,
     BATTERY_CHARGING_STATE,
+    MODE_TYPE,
     HAND_GESTURE_TYPE,
     SERVICE_MIBEACON,
     SPORT_EVENT_TYPE,
@@ -160,6 +161,33 @@ def eiid1097(
     return {}
 
 
+def eiid1105(
+    xobj: bytes, device: XiaomiBluetoothDeviceData, device_type: str
+) -> dict[str, Any]:
+    """Mode Changed"""
+    if len(xobj) != 1:
+        return {}
+    mode = xobj[0]
+    device.fire_event(
+        key=MiBandEventDeviceClass.MODE,
+        event_type=MODE_TYPE.get(mode, "other"),
+        event_properties=None,
+    )
+    if mode in (0, 1):  # Mute on/off
+        device.update_binary_sensor(
+            key=MiBandBinarySensorDeviceClass.MUTE,
+            native_value=mode == 0,
+            device_class=MiBandBinarySensorDeviceClass.MUTE,
+        )
+    elif mode in (2, 3):  # No Disturb on/off
+        device.update_binary_sensor(
+            key=MiBandBinarySensorDeviceClass.NODISTURB,
+            native_value=mode == 2,
+            device_class=MiBandBinarySensorDeviceClass.NODISTURB,
+        )
+    return {}
+
+
 # Dataobject dictionary
 # {dataObject_id: (converter}
 # maybe
@@ -180,6 +208,7 @@ xiaomi_dataobject_dict = {
     0x5C61: eiid1097,
     0x6461: eiid1097,
     0x6C61: eiid1097,
+    0x5E69: eiid1105,
 }
 
 

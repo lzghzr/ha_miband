@@ -55,6 +55,20 @@
   },
   "entity": {
     "binary_sensor": {
+      "mute": {
+        "name": "Mute",
+        "state": {
+          "off": "Off",
+          "on": "On"
+        }
+      },
+      "no_disturb": {
+        "name": "No Disturb",
+        "state": {
+          "off": "Off",
+          "on": "On"
+        }
+      },
       "wearing": {
         "name": "Wearing",
         "state": {
@@ -110,6 +124,20 @@
               "shake_wrist": "Shake Wrist",
               "wrists_outward_and_inward": "Wrists Outward And Inward",
               "snap_fingers": "Snap Fingers",
+              "other": "Other"
+            }
+          }
+        }
+      },
+      "mode": {
+        "name": "Mode",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "mute_on": "Mute On",
+              "mute_off": "Mute Off",
+              "no_disturb_on": "No Disturb On",
+              "no_disturb_off": "No Disturb Off",
               "other": "Other"
             }
           }

@@ -55,6 +55,20 @@
   },
   "entity": {
     "binary_sensor": {
+      "mute": {
+        "name": "静音",
+        "state": {
+          "off": "关闭",
+          "on": "开启"
+        }
+      },
+      "no_disturb": {
+        "name": "勿扰",
+        "state": {
+          "off": "关闭",
+          "on": "开启"
+        }
+      },
       "wearing": {
         "name": "佩戴",
         "state": {
@@ -110,6 +124,20 @@
               "shake_wrist": "快速晃动手腕",
               "wrists_outward_and_inward": "向外向内翻腕",
               "snap_fingers": "响指（搓手指）",
+              "other": "其它"
+            }
+          }
+        }
+      },
+      "mode": {
+        "name": "模式",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "mute_on": "开启静音模式",
+              "mute_off": "关闭静音模式",
+              "no_disturb_on": "开启勿扰模式",
+              "no_disturb_off": "关闭勿扰模式",
               "other": "其它"
             }
           }

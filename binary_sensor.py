@@ -20,6 +20,16 @@ from .device import device_key_to_bluetooth_entity_key
 from .parser import SensorUpdate
 
 BINARY_SENSOR_DESCRIPTIONS = {
+    MiBandBinarySensorDeviceClass.MUTE: BinarySensorEntityDescription(
+        key=MiBandBinarySensorDeviceClass.MUTE,
+        icon="mdi:volume-mute",
+        translation_key=MiBandBinarySensorDeviceClass.MUTE,
+    ),
+    MiBandBinarySensorDeviceClass.NODISTURB: BinarySensorEntityDescription(
+        key=MiBandBinarySensorDeviceClass.NODISTURB,
+        icon="mdi:minus-circle",
+        translation_key=MiBandBinarySensorDeviceClass.NODISTURB,
+    ),
     MiBandBinarySensorDeviceClass.SLEEP: BinarySensorEntityDescription(
         key=MiBandBinarySensorDeviceClass.SLEEP,
         icon="mdi:sleep",
