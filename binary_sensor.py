@@ -1,9 +1,9 @@
 """Support for MiBand binary sensors."""
 
 from homeassistant.components.binary_sensor import (
-    EntityDescription,
     BinarySensorEntity,
     BinarySensorEntityDescription,
+    EntityDescription,
 )
 from homeassistant.components.bluetooth.passive_update_processor import (
     PassiveBluetoothDataUpdate,

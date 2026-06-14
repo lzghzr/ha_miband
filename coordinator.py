@@ -11,11 +11,10 @@ from homeassistant.components.bluetooth.passive_update_processor import (
     PassiveBluetoothDataProcessor,
     PassiveBluetoothProcessorCoordinator,
 )
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 
-from .parser import XiaomiBluetoothDeviceData, SensorUpdate
-
+from .parser import SensorUpdate, XiaomiBluetoothDeviceData
 
 type MiBandConfigEntry = ConfigEntry[MiBandCoordinator]
 

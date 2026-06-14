@@ -1,11 +1,13 @@
 """The MiBand integration."""
 
-from functools import partial
 import logging
+from functools import partial
 from typing import cast
 
 from homeassistant.components.bluetooth import (
     DOMAIN as BLUETOOTH_DOMAIN,
+)
+from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
 )
 from homeassistant.const import Platform
@@ -20,12 +22,11 @@ from .const import (
     MiBandEvent,
 )
 from .coordinator import (
-    MiBandCoordinator,
     MiBandConfigEntry,
+    MiBandCoordinator,
 )
 from .device import DEVICE_TYPES
-from .parser import XiaomiBluetoothDeviceData, SensorUpdate
-
+from .parser import SensorUpdate, XiaomiBluetoothDeviceData
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.EVENT, Platform.SENSOR]
 
