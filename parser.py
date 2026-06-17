@@ -490,7 +490,6 @@ class XiaomiBluetoothDeviceData(BluetoothData):
             return None
         self.decryption_failed = False
         self.bindkey_verified = True
-        print(f"decrypted payload: {decrypted_payload.hex()}")
         return decrypted_payload
 
     def add_entities(self, pd_id: int) -> None:

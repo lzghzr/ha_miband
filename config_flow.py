@@ -7,6 +7,7 @@ from dataclasses import asdict
 from typing import Any
 
 import voluptuous as vol
+
 from homeassistant.components.bluetooth import (
     BluetoothScanningMode,
     BluetoothServiceInfo,
@@ -349,6 +350,17 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({vol.Required(CONF_ADDRESS): vol.In(titles)}),
         )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle a flow initialized by a reauth event."""
+        device: DeviceData = entry_data["device"]
+        self._discovered_device = device
+
+        self._discovery_info = device.last_service_info
+
+        return await self.async_step_get_encryption_key_4_5_choose_method()
 
     def _async_get_or_create_entry(
         self, bindkey: str | None = None, pd_id: int | None = None
