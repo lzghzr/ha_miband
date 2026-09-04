@@ -337,6 +337,70 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
     ),
+    0x8812: DeviceEntry(
+        model="miwear.watch.q66cn",
+        name="Smart Band 11",
+        binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
+            MiBandBinarySensorDeviceClass.SLEEP,
+            MiBandBinarySensorDeviceClass.WEARING,
+        ],
+        event=[
+            MiBandEventDeviceClass.ABNORMAL_SIGNS,
+            MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
+            MiBandEventDeviceClass.SPORTS,
+        ],
+        sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
+    ),
+    0x8813: DeviceEntry(
+        model="miwear.watch.q66nfc",
+        name="Smart Band 11 NFC",
+        binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
+            MiBandBinarySensorDeviceClass.SLEEP,
+            MiBandBinarySensorDeviceClass.WEARING,
+        ],
+        event=[
+            MiBandEventDeviceClass.ABNORMAL_SIGNS,
+            MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
+            MiBandEventDeviceClass.SPORTS,
+        ],
+        sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
+    ),
+    0x8814: DeviceEntry(
+        model="miwear.watch.q66tc",
+        name="Smart Band 11 Ceramic Edition",
+        binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
+            MiBandBinarySensorDeviceClass.SLEEP,
+            MiBandBinarySensorDeviceClass.WEARING,
+        ],
+        event=[
+            MiBandEventDeviceClass.ABNORMAL_SIGNS,
+            MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
+            MiBandEventDeviceClass.SPORTS,
+        ],
+        sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
+    ),
+    0x8816: DeviceEntry(
+        model="miwear.watch.q66u",
+        name="Smart Band 11 Unibody Edition",
+        binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
+            MiBandBinarySensorDeviceClass.SLEEP,
+            MiBandBinarySensorDeviceClass.WEARING,
+        ],
+        event=[
+            MiBandEventDeviceClass.ABNORMAL_SIGNS,
+            MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
+            MiBandEventDeviceClass.SPORTS,
+        ],
+        sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
+    ),
 }
 
 
