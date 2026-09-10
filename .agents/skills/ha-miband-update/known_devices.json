@@ -1,0 +1,487 @@
+{
+  "known_devices": {
+    "1289": {
+      "pd_id": 1289,
+      "model": "midr.watch.ds",
+      "pd_name_zh": "小米手表Color",
+      "pd_name_en": "Mi Watch Color"
+    },
+    "1711": {
+      "pd_id": 1711,
+      "model": "xiaomi.watch.mars",
+      "pd_name_zh": "小米手表",
+      "pd_name_en": "Mi Watch"
+    },
+    "1947": {
+      "pd_id": 1947,
+      "model": "mijia.watch.band01",
+      "pd_name_zh": "Redmi 手环",
+      "pd_name_en": "Redmi Band"
+    },
+    "2615": {
+      "pd_id": 2615,
+      "model": "hmpace.bracelet.v5h",
+      "pd_name_zh": "小米手环5 NFC版",
+      "pd_name_en": "Mi Smart Band 5 NFC"
+    },
+    "2616": {
+      "pd_id": 2616,
+      "model": "hmpace.bracelet.v5",
+      "pd_name_zh": "小米手环5",
+      "pd_name_en": "Mi Smart Band 5"
+    },
+    "2723": {
+      "pd_id": 2723,
+      "model": "mijia.watch.v1",
+      "pd_name_zh": "Redmi 手表",
+      "pd_name_en": "Redmi Watch"
+    },
+    "2851": {
+      "pd_id": 2851,
+      "model": "midr.watch.sports",
+      "pd_name_zh": "小米手表Color 运动版",
+      "pd_name_en": "Mi Watch Color Sport"
+    },
+    "4439": {
+      "pd_id": 4439,
+      "model": "hmpace.motion.v6",
+      "pd_name_zh": "小米手环6",
+      "pd_name_en": "Mi Smart Band 6"
+    },
+    "4440": {
+      "pd_id": 4440,
+      "model": "hmpace.motion.v6nfc",
+      "pd_name_zh": "小米手环6 NFC版",
+      "pd_name_en": " Mi Smart Band 6 NFC"
+    },
+    "5223": {
+      "pd_id": 5223,
+      "model": "midr.watch.k65",
+      "pd_name_zh": "Redmi 手表 2",
+      "pd_name_en": "Redmi Watch 2"
+    },
+    "5306": {
+      "pd_id": 5306,
+      "model": "midr.watch.k62",
+      "pd_name_zh": "Xiaomi Watch S1",
+      "pd_name_en": "Xiaomi Watch S1"
+    },
+    "5520": {
+      "pd_id": 5520,
+      "model": "midr.watch.k63",
+      "pd_name_zh": "Xiaomi Watch Color 2",
+      "pd_name_en": "Xiaomi Watch Color 2"
+    },
+    "6885": {
+      "pd_id": 6885,
+      "model": "hqbd3.watch.l67",
+      "pd_name_zh": "小米手环7 Pro",
+      "pd_name_en": "Xiaomi Smart Band 7 Pro"
+    },
+    "7673": {
+      "pd_id": 7673,
+      "model": "mijia.watch.l61",
+      "pd_name_zh": "Xiaomi Watch S1 Pro",
+      "pd_name_en": "Xiaomi Watch S1 Pro"
+    },
+    "7800": {
+      "pd_id": 7800,
+      "model": "hmpace.watch.v7",
+      "pd_name_zh": "小米手环7",
+      "pd_name_en": "Xiaomi Smart Band 7"
+    },
+    "7801": {
+      "pd_id": 7801,
+      "model": "hmpace.watch.v7nfc",
+      "pd_name_zh": "小米手环7 NFC版",
+      "pd_name_en": "Xiaomi Smart Band 7 NFC"
+    },
+    "9170": {
+      "pd_id": 9170,
+      "model": "lchz.watch.m65s",
+      "pd_name_zh": "Redmi Watch 3",
+      "pd_name_en": "Redmi Watch 3"
+    },
+    "9255": {
+      "pd_id": 9255,
+      "model": "midr.watch.m62s",
+      "pd_name_zh": "Xiaomi Watch S2 46mm",
+      "pd_name_en": "Xiaomi Watch S2 46mm"
+    },
+    "9257": {
+      "pd_id": 9257,
+      "model": "midr.watch.m62a",
+      "pd_name_zh": "Xiaomi Watch S2 42mm",
+      "pd_name_en": "Xiaomi Watch S2 42mm"
+    },
+    "10268": {
+      "pd_id": 10268,
+      "model": "mijia.watch.n60",
+      "pd_name_zh": "Xiaomi Watch H1",
+      "pd_name_en": "Xiaomi Watch H1"
+    },
+    "10391": {
+      "pd_id": 10391,
+      "model": "mijia.watch.m69",
+      "pd_name_zh": "Redmi 手环2",
+      "pd_name_en": "Redmi 手环2"
+    },
+    "11814": {
+      "pd_id": 11814,
+      "model": "miwear.watch.m66",
+      "pd_name_zh": "小米手环8",
+      "pd_name_en": "Xiaomi Smart Band 8"
+    },
+    "11816": {
+      "pd_id": 11816,
+      "model": "miwear.watch.m66nfc",
+      "pd_name_zh": "小米手环8 NFC版",
+      "pd_name_en": "Xiaomi Smart Band 8 NFC"
+    },
+    "13188": {
+      "pd_id": 13188,
+      "model": "lchz.watch.m67",
+      "pd_name_zh": "小米手环8 Pro",
+      "pd_name_en": "Xiaomi Smart Band 8 Pro"
+    },
+    "13813": {
+      "pd_id": 13813,
+      "model": "lchz.watch.m65ac",
+      "pd_name_zh": "Redmi Watch 3 青春版",
+      "pd_name_en": "Redmi Watch 3 青春版"
+    },
+    "14215": {
+      "pd_id": 14215,
+      "model": "miwear.watch.m66dsn",
+      "pd_name_zh": "小米手环8 迪士尼100周年限定版",
+      "pd_name_en": "Xiaomi Smart Band 8 Disney100 Limited Edition"
+    },
+    "14666": {
+      "pd_id": 14666,
+      "model": "lchz.watch.n65",
+      "pd_name_zh": "Redmi Watch 4",
+      "pd_name_en": "Redmi Watch 4"
+    },
+    "16859": {
+      "pd_id": 16859,
+      "model": "lchz.watch.m67ys",
+      "pd_name_zh": "小米手环8 Pro 原神定制版",
+      "pd_name_en": "Xiaomi Smart Band 8 Pro Genshin Edition"
+    },
+    "17575": {
+      "pd_id": 17575,
+      "model": "miwear.watch.n66cn",
+      "pd_name_zh": "小米手环9",
+      "pd_name_en": "Xiaomi Smart Band 9"
+    },
+    "17576": {
+      "pd_id": 17576,
+      "model": "miwear.watch.n66nfc",
+      "pd_name_zh": "小米手环9 NFC版",
+      "pd_name_en": "Xiaomi Smart Band 9 NFC"
+    },
+    "17992": {
+      "pd_id": 17992,
+      "model": "miwear.watch.n66tc",
+      "pd_name_zh": "小米手环9 陶瓷特别版",
+      "pd_name_en": "Xiaomi Smart Band 9 Ceramic Edition"
+    },
+    "19330": {
+      "pd_id": 19330,
+      "model": "miwear.watch.n67cn",
+      "pd_name_zh": "小米手环9 Pro",
+      "pd_name_en": "Xiaomi Smart Band 9 Pro"
+    },
+    "19602": {
+      "pd_id": 19602,
+      "model": "mijia.watch.n60e",
+      "pd_name_zh": "Xiaomi Watch H1 E",
+      "pd_name_en": "Xiaomi Watch H1 E"
+    },
+    "20478": {
+      "pd_id": 20478,
+      "model": "miwear.watch.n69cn",
+      "pd_name_zh": "Redmi 手环3",
+      "pd_name_en": "Redmi Smart Band 3"
+    },
+    "22367": {
+      "pd_id": 22367,
+      "model": "miwear.headphone.o73cn",
+      "pd_name_zh": "Xiaomi 骨传导耳机2",
+      "pd_name_en": "Xiaomi Earphones Explore 2"
+    },
+    "37741": {
+      "pd_id": 37741,
+      "model": "miwear.watch.q65acn",
+      "pd_name_zh": "REDMI Watch 6 活力版",
+      "pd_name_en": "REDMI Watch 6 活力版"
+    },
+    "72646": {
+      "pd_id": 72646,
+      "model": "xiaomi.watch.mifit1",
+      "pd_name_zh": "Zepp Life",
+      "pd_name_en": "Zepp Life"
+    }
+  },
+  "not_supported": {
+    "1289": {
+      "pd_id": 1289,
+      "model": "midr.watch.ds",
+      "pd_name_zh": "小米手表Color",
+      "pd_name_en": "Mi Watch Color",
+      "reason": "not_registered"
+    },
+    "1711": {
+      "pd_id": 1711,
+      "model": "xiaomi.watch.mars",
+      "pd_name_zh": "小米手表",
+      "pd_name_en": "Mi Watch",
+      "reason": "not_registered"
+    },
+    "1947": {
+      "pd_id": 1947,
+      "model": "mijia.watch.band01",
+      "pd_name_zh": "Redmi 手环",
+      "pd_name_en": "Redmi Band",
+      "reason": "not_registered"
+    },
+    "2615": {
+      "pd_id": 2615,
+      "model": "hmpace.bracelet.v5h",
+      "pd_name_zh": "小米手环5 NFC版",
+      "pd_name_en": "Mi Smart Band 5 NFC",
+      "reason": "not_registered"
+    },
+    "2616": {
+      "pd_id": 2616,
+      "model": "hmpace.bracelet.v5",
+      "pd_name_zh": "小米手环5",
+      "pd_name_en": "Mi Smart Band 5",
+      "reason": "not_registered"
+    },
+    "2723": {
+      "pd_id": 2723,
+      "model": "mijia.watch.v1",
+      "pd_name_zh": "Redmi 手表",
+      "pd_name_en": "Redmi Watch",
+      "reason": "not_registered"
+    },
+    "2851": {
+      "pd_id": 2851,
+      "model": "midr.watch.sports",
+      "pd_name_zh": "小米手表Color 运动版",
+      "pd_name_en": "Mi Watch Color Sport",
+      "reason": "not_registered"
+    },
+    "4439": {
+      "pd_id": 4439,
+      "model": "hmpace.motion.v6",
+      "pd_name_zh": "小米手环6",
+      "pd_name_en": "Mi Smart Band 6",
+      "reason": "not_registered"
+    },
+    "4440": {
+      "pd_id": 4440,
+      "model": "hmpace.motion.v6nfc",
+      "pd_name_zh": "小米手环6 NFC版",
+      "pd_name_en": " Mi Smart Band 6 NFC",
+      "reason": "not_registered"
+    },
+    "5223": {
+      "pd_id": 5223,
+      "model": "midr.watch.k65",
+      "pd_name_zh": "Redmi 手表 2",
+      "pd_name_en": "Redmi Watch 2",
+      "reason": "not_registered"
+    },
+    "5306": {
+      "pd_id": 5306,
+      "model": "midr.watch.k62",
+      "pd_name_zh": "Xiaomi Watch S1",
+      "pd_name_en": "Xiaomi Watch S1",
+      "reason": "no_objectids"
+    },
+    "5520": {
+      "pd_id": 5520,
+      "model": "midr.watch.k63",
+      "pd_name_zh": "Xiaomi Watch Color 2",
+      "pd_name_en": "Xiaomi Watch Color 2",
+      "reason": "no_objectids"
+    },
+    "6885": {
+      "pd_id": 6885,
+      "model": "hqbd3.watch.l67",
+      "pd_name_zh": "小米手环7 Pro",
+      "pd_name_en": "Xiaomi Smart Band 7 Pro",
+      "reason": "no_objectids"
+    },
+    "7673": {
+      "pd_id": 7673,
+      "model": "mijia.watch.l61",
+      "pd_name_zh": "Xiaomi Watch S1 Pro",
+      "pd_name_en": "Xiaomi Watch S1 Pro",
+      "reason": "no_objectids"
+    },
+    "7800": {
+      "pd_id": 7800,
+      "model": "hmpace.watch.v7",
+      "pd_name_zh": "小米手环7",
+      "pd_name_en": "Xiaomi Smart Band 7",
+      "reason": "no_objectids"
+    },
+    "7801": {
+      "pd_id": 7801,
+      "model": "hmpace.watch.v7nfc",
+      "pd_name_zh": "小米手环7 NFC版",
+      "pd_name_en": "Xiaomi Smart Band 7 NFC",
+      "reason": "no_objectids"
+    },
+    "9170": {
+      "pd_id": 9170,
+      "model": "lchz.watch.m65s",
+      "pd_name_zh": "Redmi Watch 3",
+      "pd_name_en": "Redmi Watch 3",
+      "reason": "no_objectids"
+    },
+    "9255": {
+      "pd_id": 9255,
+      "model": "midr.watch.m62s",
+      "pd_name_zh": "Xiaomi Watch S2 46mm",
+      "pd_name_en": "Xiaomi Watch S2 46mm",
+      "reason": "no_objectids"
+    },
+    "9257": {
+      "pd_id": 9257,
+      "model": "midr.watch.m62a",
+      "pd_name_zh": "Xiaomi Watch S2 42mm",
+      "pd_name_en": "Xiaomi Watch S2 42mm",
+      "reason": "no_objectids"
+    },
+    "10268": {
+      "pd_id": 10268,
+      "model": "mijia.watch.n60",
+      "pd_name_zh": "Xiaomi Watch H1",
+      "pd_name_en": "Xiaomi Watch H1",
+      "reason": "no_objectids"
+    },
+    "10391": {
+      "pd_id": 10391,
+      "model": "mijia.watch.m69",
+      "pd_name_zh": "Redmi 手环2",
+      "pd_name_en": "Redmi 手环2",
+      "reason": "no_objectids"
+    },
+    "11814": {
+      "pd_id": 11814,
+      "model": "miwear.watch.m66",
+      "pd_name_zh": "小米手环8",
+      "pd_name_en": "Xiaomi Smart Band 8",
+      "reason": "no_objectids"
+    },
+    "11816": {
+      "pd_id": 11816,
+      "model": "miwear.watch.m66nfc",
+      "pd_name_zh": "小米手环8 NFC版",
+      "pd_name_en": "Xiaomi Smart Band 8 NFC",
+      "reason": "no_objectids"
+    },
+    "13188": {
+      "pd_id": 13188,
+      "model": "lchz.watch.m67",
+      "pd_name_zh": "小米手环8 Pro",
+      "pd_name_en": "Xiaomi Smart Band 8 Pro",
+      "reason": "no_objectids"
+    },
+    "13813": {
+      "pd_id": 13813,
+      "model": "lchz.watch.m65ac",
+      "pd_name_zh": "Redmi Watch 3 青春版",
+      "pd_name_en": "Redmi Watch 3 青春版",
+      "reason": "no_objectids"
+    },
+    "14215": {
+      "pd_id": 14215,
+      "model": "miwear.watch.m66dsn",
+      "pd_name_zh": "小米手环8 迪士尼100周年限定版",
+      "pd_name_en": "Xiaomi Smart Band 8 Disney100 Limited Edition",
+      "reason": "no_objectids"
+    },
+    "14666": {
+      "pd_id": 14666,
+      "model": "lchz.watch.n65",
+      "pd_name_zh": "Redmi Watch 4",
+      "pd_name_en": "Redmi Watch 4",
+      "reason": "no_objectids"
+    },
+    "16859": {
+      "pd_id": 16859,
+      "model": "lchz.watch.m67ys",
+      "pd_name_zh": "小米手环8 Pro 原神定制版",
+      "pd_name_en": "Xiaomi Smart Band 8 Pro Genshin Edition",
+      "reason": "no_objectids"
+    },
+    "17575": {
+      "pd_id": 17575,
+      "model": "miwear.watch.n66cn",
+      "pd_name_zh": "小米手环9",
+      "pd_name_en": "Xiaomi Smart Band 9",
+      "reason": "no_objectids"
+    },
+    "17576": {
+      "pd_id": 17576,
+      "model": "miwear.watch.n66nfc",
+      "pd_name_zh": "小米手环9 NFC版",
+      "pd_name_en": "Xiaomi Smart Band 9 NFC",
+      "reason": "no_objectids"
+    },
+    "17992": {
+      "pd_id": 17992,
+      "model": "miwear.watch.n66tc",
+      "pd_name_zh": "小米手环9 陶瓷特别版",
+      "pd_name_en": "Xiaomi Smart Band 9 Ceramic Edition",
+      "reason": "no_objectids"
+    },
+    "19330": {
+      "pd_id": 19330,
+      "model": "miwear.watch.n67cn",
+      "pd_name_zh": "小米手环9 Pro",
+      "pd_name_en": "Xiaomi Smart Band 9 Pro",
+      "reason": "no_objectids"
+    },
+    "19602": {
+      "pd_id": 19602,
+      "model": "mijia.watch.n60e",
+      "pd_name_zh": "Xiaomi Watch H1 E",
+      "pd_name_en": "Xiaomi Watch H1 E",
+      "reason": "no_objectids"
+    },
+    "20478": {
+      "pd_id": 20478,
+      "model": "miwear.watch.n69cn",
+      "pd_name_zh": "Redmi 手环3",
+      "pd_name_en": "Redmi Smart Band 3",
+      "reason": "no_objectids"
+    },
+    "22367": {
+      "pd_id": 22367,
+      "model": "miwear.headphone.o73cn",
+      "pd_name_zh": "Xiaomi 骨传导耳机2",
+      "pd_name_en": "Xiaomi Earphones Explore 2",
+      "reason": "not_registered"
+    },
+    "37741": {
+      "pd_id": 37741,
+      "model": "miwear.watch.q65acn",
+      "pd_name_zh": "REDMI Watch 6 活力版",
+      "pd_name_en": "REDMI Watch 6 活力版",
+      "reason": "no_objectids"
+    },
+    "72646": {
+      "pd_id": 72646,
+      "model": "xiaomi.watch.mifit1",
+      "pd_name_zh": "Zepp Life",
+      "pd_name_en": "Zepp Life",
+      "reason": "no_objectids"
+    }
+  }
+}
