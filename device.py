@@ -371,6 +371,23 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
     ),
+    0x8536: DeviceEntry(
+        model="miwear.watch.q63",
+        name="Watch S5",
+        binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
+            MiBandBinarySensorDeviceClass.SLEEP,
+            MiBandBinarySensorDeviceClass.WEARING,
+        ],
+        event=[
+            MiBandEventDeviceClass.ABNORMAL_SIGNS,
+            MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.HAND_GESTURE,
+            MiBandEventDeviceClass.MODE,
+            MiBandEventDeviceClass.SPORTS,
+        ],
+        sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
+    ),
     0x8812: DeviceEntry(
         model="miwear.watch.q66cn",
         name="Smart Band 11",
