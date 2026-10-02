@@ -13,7 +13,7 @@ description: 小米手环 HA 集成的设备更新流水线：抓取小米运动
 
 ## 文件布局
 
-本 skill 目录（项目 `SKILL/`）含全部工具与状态；写入目标在项目根（脚本自动向上查找定位，从任意目录运行均可）：
+本 skill 目录含全部工具与状态；写入目标在项目根（脚本自动向上查找定位，从任意目录运行均可）：
 
 - `pipeline.py` — 流水线主脚本
 - `get_config_info_by_category.py` — 设备列表抓取（被 pipeline 导入）
@@ -23,17 +23,33 @@ description: 小米手环 HA 集成的设备更新流水线：抓取小米运动
 
 ## 标准流程
 
+以下命令在**本 skill 目录**下执行（`pipeline.py` 会自动向上定位项目根）：
+
 ```bash
-python3 SKILL/pipeline.py             # dry-run：刷新配置、发现新设备、生成代码块，不写文件
-python3 SKILL/pipeline.py --apply     # 真正写入 device.py
-python3 SKILL/pipeline.py --model miwear.watch.q66nfc   # 只处理指定 model
-python3 SKILL/pipeline.py --only devices|objectids|generate   # 只跑某一步
+python3 pipeline.py             # dry-run：刷新配置、发现新设备、生成代码块（不写 device.py）
+python3 pipeline.py --apply     # 真正写入 device.py
+python3 pipeline.py --model miwear.watch.q66nfc   # 只处理指定 model
+python3 pipeline.py --only devices|objectids|generate   # 只跑某一步
 ```
 
 1. 先跑 dry-run，向用户报告：新设备清单、每个设备的 objectid 识别情况、将生成的代码块。
 2. 经用户确认后 `--apply`。
 3. 验证：再跑一次 dry-run 应报"发现 0 个新设备"；`git diff device.py` 检查插入位置与格式。
-4. 提交：`git add device.py SKILL/known_devices.json`，提交信息沿用项目惯例 `新增 <中文名>`（如"新增 小米手环11"）。
+4. 提交：`git add device.py <skill 目录>/known_devices.json`，提交信息沿用项目惯例 `新增 <中文名>`（如"新增 小米手环11"）；只更新状态文件（没有新设备入库）时用 `记录 <中文名> 为不支持设备` 一类描述。
+
+### dry-run 会写哪些文件
+
+dry-run（不带 `--apply`）**只保护 `device.py`**，不是完全不写盘：
+
+- `get_config_info_by_category*.json`：每次运行都重写（抓取结果，已 gitignore）。
+- `known_devices.json`：step2 一旦**确认**某设备无需入库（HTTP 404 或 无有意义 objectid），即使 dry-run 也会写入两个分区，供下次运行跳过——否则每次运行都要重复报告同一台设备。
+- 项目根 `device.py`：仅 `--apply` 写入。
+
+`--only` 分档：`--only devices` 在 step1 后返回（除配置刷新外不改状态）；`--only objectids` / `--only generate` 在 step2 **之后**返回，照样会写 `known_devices.json`。
+
+### 抓取失败不会被登记
+
+网络/DNS/超时/非 404 状态码/响应缺 `services` 都判为**结论未知**：该设备本次不写入任何分区，下次运行仍作为新设备出现，脚本以退出码 `2` 提示需要重跑。只有真实的 HTTP 404 才登记为 `not_registered`。因此退出码 `2` 时应重跑，而不是把结果当作"该设备不支持"。
 
 ## 状态文件 known_devices.json
 
@@ -50,9 +66,10 @@ JSON 键因格式限制存的是 `str(pd_id)`，判断一律以条目内的 `pd_
 }
 ```
 
-- `not_supported.reason` 取值：`not_registered`（miot-spec 404，属正常现象）/ `no_objectids`（无 eiid>1000 对象，集成不支持）。
-- step1 只跳过 `known_devices` 里的设备；step2 把确认 404/无 objectid 的设备同时写入两个分区。
-- **有有意义 objectid 但未 apply 的设备不登记**（如曾因 dry-run 未写入的设备）——下次仍作为新设备出现，直到 apply 成功后由 device.py 自然过滤。dry-run 永远不改变状态。
+- `not_supported.reason` 取值：`not_registered`（miot-spec 真实 HTTP 404，属正常现象）/ `no_objectids`（无 eiid>1000 对象，集成不支持）。
+- step1 只跳过 `known_devices` 里的设备；step2 把确认 404/无 objectid 的设备同时写入两个分区（dry-run 也写，见上）。
+- **抓取失败（结论未知）不写入任何分区**，下次仍作为新设备出现，脚本以退出码 2 提示重跑。
+- **有有意义 objectid 但未 apply 的设备不登记**（如曾因 dry-run 未写入的设备）——下次仍作为新设备出现，直到 apply 成功后由 device.py 自然过滤。
 
 ## 未知 objectid 的人工补全
 

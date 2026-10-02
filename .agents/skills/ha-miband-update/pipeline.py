@@ -15,11 +15,23 @@
   有有意义 objectid 但未 --apply 的设备不登记, 下次仍作为新设备出现,
   直到 apply 写入 device.py 后由 existing 自然过滤。
 
+注意 dry-run 并非完全不写盘, 它保护的对象只有 device.py:
+  每次运行都重写 get_config_info_by_category*.json(抓取结果)。
+  step2 一旦确认某设备无需入库, 即便 dry-run 也会写入 known_devices.json,
+  以便下次运行跳过它(否则每跑一次都要重新报告同一台设备)。
+  只有 device.py 需要 --apply 才会被写入。
+
+抓取失败(网络/DNS/超时/非 404 状态码/无 services)与真实"未注册"严格区分:
+  只有真的 HTTP 404 才登记 not_registered; 结论未知的设备本次不登记,
+  下次运行仍会作为新设备出现, 并以退出码 2 提示需要重跑。
+
 用法:
-  python3 pipeline.py            # dry-run, 只打印新设备与将要生成的代码, 不写文件
+  python3 pipeline.py            # dry-run, 生成 device.py 代码块但不写 device.py
   python3 pipeline.py --apply    # 真正写入 device.py
   python3 pipeline.py --only devices|objectids|generate   # 只跑某一步
   python3 pipeline.py --model miwear.watch.q66nfc        # 只处理指定 model
+
+退出码: 0=正常; 2=有设备抓取失败未登记(结论未知, 需重跑)。
 
 校验: 对照上一次提交("新增 小米手环11"), 本流水线应能复现其 device.py 改动。
 """
@@ -193,17 +205,47 @@ def model_to_url(model: str) -> str:
     return MIOT_SPEC_URL.format(model_dashed=model_dashed)
 
 
-def fetch_instance(model: str) -> dict | None:
-    """抓取 miot-spec instance JSON; 失败返回 None."""
+def fetch_instance(model: str) -> tuple[dict | None, str]:
+    """抓取 miot-spec instance, 返回 (instance, status)。
+
+    status 取值:
+      "ok"             - 抓取成功, instance 可用。
+      "not_registered" - 真实 HTTP 404, 确认该 model 未注册。
+      "error"          - 网络/解析/服务端异常, 结论未知。
+
+    只有 "not_registered" 才能登记为不支持; "error" 必须留待下次重试,
+    否则一次网络抖动会把本来能支持的设备永久钉成不支持。
+    """
+    import urllib.error
     import urllib.request
 
     url = model_to_url(model)
     try:
         with urllib.request.urlopen(url, timeout=30) as resp:
-            return json.loads(resp.read())
+            instance = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None, "not_registered"
+        print(
+            f"    [警告] 抓取 {model} 失败: HTTP {e.code}(非 404), 结论未知, 不登记。",
+            file=sys.stderr,
+        )
+        return None, "error"
     except Exception as e:  # noqa: BLE001
-        print(f"    [警告] 抓取 {model} 的 miot-spec 失败: {e}", file=sys.stderr)
-        return None
+        print(
+            f"    [警告] 抓取 {model} 失败: {e}(网络/解析错误), 结论未知, 不登记。",
+            file=sys.stderr,
+        )
+        return None, "error"
+
+    # 200 但没有 services 视为可疑响应, 不据此判定"无需入库"。
+    if not (instance.get("services") or []):
+        print(
+            f"    [警告] {model} 的 miot-spec 无 services 字段, 响应可疑, 不登记。",
+            file=sys.stderr,
+        )
+        return None, "error"
+    return instance, "ok"
 
 
 def compute_objectids(instance: dict) -> list[dict]:
@@ -373,22 +415,39 @@ def main() -> int:
 
     analyzed = []
     newly_unsupported = {}
+    fetch_failed = []
     unsupported_models = {v["model"] for v in not_supported.values()}
+
+    def done(code: int = 0) -> int:
+        """统一出口: 有抓取失败的设备时以 2 退出, 提示需要重跑。"""
+        if fetch_failed:
+            print(
+                f"\n[注意] 本次 {len(fetch_failed)} 个设备抓取失败, 未登记任何结论, "
+                f"请重跑: {', '.join(d['model'] for d in fetch_failed)}"
+            )
+            return 2
+        return code
+
     for d in targets:
         model = d["model"]
         if model in unsupported_models:
             print(f"\n[step2] 跳过 {model}: 已记录为不支持({not_supported.get(str(d['pd_id']), {}).get('reason')})。")
             continue
         print(f"\n[step2] 分析 {model}:")
-        inst = fetch_instance(model)
-        if inst is None:
-            # miot-spec 未注册(404) -> 确认无需入库
+        inst, status = fetch_instance(model)
+        if status == "error":
+            # 结论未知: 不登记, 下次运行仍作为新设备出现
+            fetch_failed.append(d)
+            print(f"    ✗ {model} 抓取失败, 本次不登记(下次重试)。")
+            continue
+        if status == "not_registered":
+            # miot-spec 真实 404 -> 确认无需入库
             newly_unsupported[str(d["pd_id"])] = {
                 "pd_id": d["pd_id"], "model": model,
                 "pd_name_zh": d["pd_name_zh"], "pd_name_en": d["pd_name_en"],
                 "reason": "not_registered",
             }
-            print(f"    ⚠ {model} 未在 miot-spec 注册, 已记入 not_supported。")
+            print(f"    ⚠ {model} 未在 miot-spec 注册(HTTP 404), 已记入 not_supported。")
             continue
         objs = compute_objectids(inst)
         if not objs:
@@ -433,7 +492,7 @@ def main() -> int:
               f"共 {len(not_supported)} 个(not_supported) / {len(known)} 个(known_devices)。")
 
     if args.only == "objectids":
-        return 0
+        return done()
 
     # ---- step3 ----
     print("\n[step3] 生成的 DeviceEntry 代码块:")
@@ -450,12 +509,12 @@ def main() -> int:
         generated.append((d["pd_id"], block))
 
     if args.only == "generate":
-        return 0
+        return done()
 
     # ---- 写回 device.py ----
     if not args.apply:
         print("\n[dry-run] 未写入 device.py (加 --apply 才会真正写入)。")
-        return 0
+        return done()
 
     src = open(DEVICE_FILE).read()
     # 按 dict key 升序插入到各自正确的位置
@@ -463,7 +522,7 @@ def main() -> int:
         src = insert_entry_sorted(src, pid, block)
     open(DEVICE_FILE, "w").write(src)
     print(f"\n[apply] 已按 key 升序写入 {len(generated)} 个新设备到 device.py")
-    return 0
+    return done()
 
 
 if __name__ == "__main__":
