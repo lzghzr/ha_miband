@@ -221,6 +221,12 @@
       "model": "xiaomi.watch.mifit1",
       "pd_name_zh": "Zepp Life",
       "pd_name_en": "Zepp Life"
+    },
+    "38828": {
+      "pd_id": 38828,
+      "model": "miwear.watch.q69cn",
+      "pd_name_zh": "REDMI 手环 4",
+      "pd_name_en": "REDMI Smart Band 4"
     }
   },
   "not_supported": {
@@ -481,6 +487,13 @@
       "model": "xiaomi.watch.mifit1",
       "pd_name_zh": "Zepp Life",
       "pd_name_en": "Zepp Life",
+      "reason": "no_objectids"
+    },
+    "38828": {
+      "pd_id": 38828,
+      "model": "miwear.watch.q69cn",
+      "pd_name_zh": "REDMI 手环 4",
+      "pd_name_en": "REDMI Smart Band 4",
       "reason": "no_objectids"
     }
   }
