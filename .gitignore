@@ -209,3 +209,5 @@ __marimo__/
 # pipeline.py 每次运行重新生成的原始 API 抓取数据
 get_config_info_by_category*.json
 .DS_Store
+
+AGENTS.md
