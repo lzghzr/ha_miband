@@ -1,0 +1,421 @@
+# 设备更新检查：定时抓取小米运动健康的可穿戴设备列表，发现新设备则自动入库并发 Release。
+#
+# 行为约定（fail-closed）：
+#   * 判定只读 pipeline.py --report 的机器可读 JSON，不解析中文控制台输出。
+#   * 抓取失败（退出码 2，含"连设备列表都没抓到"）= 结论未知 → 整轮中止，绝不当作"该设备不支持"。
+#   * 有未识别 objectid 的设备 → 生成的 DeviceEntry 残缺 → 整轮零写入，只开 issue 等人工补全 parser.py。
+#     （零写入也覆盖"不支持设备"的状态提交；未登记的设备下轮自然复现，靠 issue 幂等抑制刷屏。）
+#   * bot 的提交不需要签名（用户口径）。
+#   * 手动触发默认 dry_run=true：只检查、不写仓库。
+#
+# 幂等：
+#   * 上一轮"已提交代码但 Release 失败"会在下轮被补齐（仅当该提交的作者是 bot 且标题以"新增 "开头）。
+#   * issue 先建/更新、后提交状态；正文未变化时不追加评论。
+name: 设备更新检查
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # 每周一 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只检查，不提交也不发版"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: device-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '' }}
+      SKILL: .agents/skills/ha-miband-update
+      BOT_NAME: github-actions[bot]
+      BOT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0 # 需要全部 tag 来推算版本号、生成 Full Changelog
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # pipeline.py 用了 `X | None` 注解，需 3.10+
+
+      - name: 检查是否有"已提交但未发版"的 bot 发布需要补齐
+        id: pending
+        run: |
+          set -euo pipefail
+          manifest_v=$(python3 -c "import json;print(json.load(open('manifest.json'))['version'])")
+          latest_tag=$(git tag -l --sort=-v:refname | head -n1)
+          latest_tag=${latest_tag:-0.0.0}
+          head_author=$(git log -1 --format=%ae)
+          head_subject=$(git log -1 --format=%s)
+          echo "manifest=$manifest_v 最新 tag=$latest_tag HEAD 作者=$head_author 标题=$head_subject"
+
+          # 只有"版本比最新 tag 新"且"HEAD 是 bot 的 新增 提交"才算 bot 自己没发完的发布。
+          # 这样人工 bump 版本但打算稍后手动发版时不会被抢发。
+          # 注意：这里只负责"本轮要不要发版"；历史遗漏的 Release 由后面的
+          # 「补齐所有缺失的 Release」步骤统一兜底，二者不重叠。
+          if [ "$(printf '%s\n%s\n' "$latest_tag" "$manifest_v" | sort -V | tail -n1)" = "$manifest_v" ] \
+             && [ "$manifest_v" != "$latest_tag" ] \
+             && [ "$head_author" = "$BOT_EMAIL" ] \
+             && [ "${head_subject#新增 }" != "$head_subject" ]; then
+            echo "detected=true"
+            echo "detected=true" >> "$GITHUB_OUTPUT"
+            echo "version=$manifest_v" >> "$GITHUB_OUTPUT"
+            echo "prev=$latest_tag" >> "$GITHUB_OUTPUT"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            echo "detected=false"
+            echo "detected=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 计算下一个版本号（最新 tag patch+1）
+        id: ver
+        run: |
+          set -euo pipefail
+          latest=$(git tag -l --sort=-v:refname | head -n1)
+          echo "最新 tag: ${latest:-<无>}"
+          if [ -z "$latest" ]; then
+            next="0.0.1"
+          else
+            IFS=. read -r major minor patch <<< "$latest"
+            next="$major.$minor.$((patch + 1))"
+          fi
+          echo "下一个版本: $next"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "prev=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: 运行流水线（--apply + 机器可读报告）
+        id: pipe
+        continue-on-error: true
+        working-directory: .agents/skills/ha-miband-update
+        run: |
+          python3 pipeline.py --apply --report "$RUNNER_TEMP/report.json" 2>&1 \
+            | tee "$RUNNER_TEMP/pipeline.log"
+          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: 上传报告与日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-check-output
+          path: |
+            ${{ runner.temp }}/report.json
+            ${{ runner.temp }}/pipeline.log
+          if-no-files-found: warn
+
+      - name: 抓取失败则中止（本轮不做任何提交）
+        if: steps.pipe.outputs.exit != '0'
+        run: |
+          echo "::error::流水线退出码 ${{ steps.pipe.outputs.exit }}：抓取失败或运行异常，本轮不做任何提交，请重跑。"
+          tail -20 "$RUNNER_TEMP/pipeline.log"
+          exit 1
+
+      - name: 解析报告
+        id: rep
+        # 只向 $GITHUB_OUTPUT 写固定布尔值：设备名来自外部接口，
+        # 一旦带换行就能伪造出 has_manual=false 之类的门控行（runner 对重复 key 取最后一次）。
+        # 名称改落到单独文件，供提交信息与 issue 使用。
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/report.json" "$RUNNER_TEMP" >> "$GITHUB_OUTPUT" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as f:
+              r = json.load(f)
+          out = pathlib.Path(sys.argv[2])
+
+          def zh(d):
+              return d.get("pd_name_zh") or d["model"]
+
+          supported = [d for d in r["supported"] if not d["unknown_objectids"]]
+          manual = [d for d in r["supported"] if d["unknown_objectids"]]
+          unsupported = [d for d in r["unsupported"]
+                         if d["reason"] in ("not_registered", "no_objectids")]
+          already = [d for d in r["unsupported"] if d["reason"] == "already_recorded"]
+
+          (out / "names_supported.txt").write_text(
+              "、".join(zh(d) for d in supported), encoding="utf-8")
+          (out / "names_unsupported.txt").write_text(
+              "、".join(zh(d) for d in unsupported), encoding="utf-8")
+
+          print(f"has_supported={'true' if supported else 'false'}")
+          print(f"has_manual={'true' if manual else 'false'}")
+          print(f"has_unsupported={'true' if unsupported else 'false'}")
+          print(f"has_already={'true' if already else 'false'}")
+          PY
+
+      - name: 不支持 / 待核验设备 → issue（先建后提交）
+        if: >-
+          (steps.rep.outputs.has_unsupported == 'true' ||
+           steps.rep.outputs.has_already == 'true') &&
+          env.DRY_RUN != '1'
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/report.json" "$RUNNER_TEMP/pipeline.log" \
+            > "$RUNNER_TEMP/issue-unsupported.md" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as f:
+              r = json.load(f)
+
+          unsupported = [d for d in r["unsupported"]
+                         if d["reason"] in ("not_registered", "no_objectids")]
+          already = [d for d in r["unsupported"] if d["reason"] == "already_recorded"]
+
+          print("<!-- device-check:unsupported -->")
+          if unsupported:
+              print("以下新设备已确认本集成无法支持：\n")
+              print("| pd_id | model | 中文名 | 英文名 | 原因 |")
+              print("|---|---|---|---|---|")
+              for d in unsupported:
+                  print("| {pd_id} | `{model}` | {zh} | {en} | {reason} |".format(
+                      zh=d.get("pd_name_zh") or "", en=d.get("pd_name_en") or "", **d))
+              print("\n原因含义：`not_registered` = miot-spec 未注册（HTTP 404）；"
+                    "`no_objectids` = 无 eiid>1000 的有意义对象。")
+              print("状态清单会在同一次运行的后续步骤写入 `known_devices.json`；"
+                    "若本轮另有需人工补全的设备，则整轮零写入，清单下轮再登记。")
+          if already:
+              print("\n以下 model 已在 `not_supported` 中记录，但出现了新的 pd_id，**需要人工核验**"
+                    "（本轮不会自动登记，以免未核验就继承旧结论）：\n")
+              print("| pd_id | model | 中文名 | 英文名 |")
+              print("|---|---|---|---|")
+              for d in already:
+                  print("| {pd_id} | `{model}` | {zh} | {en} |".format(
+                      zh=d.get("pd_name_zh") or "", en=d.get("pd_name_en") or "", **d))
+          print("<!-- device-check:stable:end -->")
+          print("\n<details><summary>流水线日志</summary>\n")
+          print("```")
+          print(open(sys.argv[2], encoding="utf-8").read().strip())
+          print("```")
+          print("\n</details>")
+          PY
+          export TITLE="[设备更新] 发现不支持的新设备"
+          num=$(gh issue list --state open --search "$TITLE in:title" \
+                --json number,title \
+                --jq '.[] | select(.title == env.TITLE) | .number' | head -n1)
+          if [ -n "$num" ]; then
+            # 只在「设备清单」变化时改动 issue：正文里的流水线日志每轮都不同，
+            # 直接比整份正文会永远判为变化。故只比 stable:end 标记之前的部分，
+            # 且用 edit 更新正文（更新比较基准）而不是追加评论——否则同一份清单
+            # 每轮都会再刷一条评论。
+            stable() { sed -n '/<!-- device-check:unsupported -->/,/<!-- device-check:stable:end -->/p' "$1"; }
+            gh issue view "$num" --json body --jq .body > "$RUNNER_TEMP/existing-issue.md"
+            if stable "$RUNNER_TEMP/existing-issue.md" | diff -q - <(stable "$RUNNER_TEMP/issue-unsupported.md") >/dev/null; then
+              echo "issue #$num 设备清单未变化，跳过"
+            else
+              gh issue edit "$num" --body-file "$RUNNER_TEMP/issue-unsupported.md"
+              echo "issue #$num 设备清单有变化，已更新正文"
+            fi
+          else
+            gh issue create --title "$TITLE" --body-file "$RUNNER_TEMP/issue-unsupported.md"
+          fi
+
+      - name: 需人工补全 objectid → issue
+        if: steps.rep.outputs.has_manual == 'true' && env.DRY_RUN != '1'
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/report.json" "$RUNNER_TEMP/pipeline.log" \
+            > "$RUNNER_TEMP/issue-manual.md" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as f:
+              r = json.load(f)
+
+          rows = [d for d in r["supported"] if d["unknown_objectids"]]
+          print("<!-- device-check:manual -->")
+          print("发现的新设备含**未识别的 objectid**，生成的 `DeviceEntry` 会缺少对应实体，"
+                "因此**本轮仓库零写入、未发版**。\n")
+          print("需按顺序补全三处，然后重跑：\n")
+          print("1. `parser.py` 的 `xiaomi_dataobject_dict` 加映射并实现 converter")
+          print("2. `.agents/skills/ha-miband-update/pipeline.py` 的 `FUNC_TO_CLASS` 加映射")
+          print("3. 需要时在 `const.py` 补枚举成员\n")
+          for d in rows:
+              print(f"### {d.get('pd_name_zh') or d['model']}（`{d['model']}`）\n")
+              for o in d["unknown_objectids"]:
+                  print(f"- `0x{o:04X}`")
+              print()
+          print("<!-- device-check:stable:end -->")
+          print("<details><summary>流水线日志</summary>\n")
+          print("```")
+          print(open(sys.argv[2], encoding="utf-8").read().strip())
+          print("```")
+          print("\n</details>")
+          PY
+          export TITLE="[设备更新] 新设备需要人工补全 parser.py"
+          num=$(gh issue list --state open --search "$TITLE in:title" \
+                --json number,title \
+                --jq '.[] | select(.title == env.TITLE) | .number' | head -n1)
+          if [ -n "$num" ]; then
+            stable() { sed -n '/<!-- device-check:manual -->/,/<!-- device-check:stable:end -->/p' "$1"; }
+            gh issue view "$num" --json body --jq .body > "$RUNNER_TEMP/existing-manual.md"
+            if stable "$RUNNER_TEMP/existing-manual.md" | diff -q - <(stable "$RUNNER_TEMP/issue-manual.md") >/dev/null; then
+              echo "issue #$num 设备清单未变化，跳过"
+            else
+              gh issue edit "$num" --body-file "$RUNNER_TEMP/issue-manual.md"
+              echo "issue #$num 设备清单有变化，已更新正文"
+            fi
+          else
+            gh issue create --title "$TITLE" --body-file "$RUNNER_TEMP/issue-manual.md"
+          fi
+
+      # 所有仓库写入共用一个门控：无待人工补全设备（has_manual=false）才写。
+      # 有 manual → 零写入，保证"残缺条目绝不进仓库"这条不变式只有一处判定。
+      - name: 提交"不支持设备"的状态
+        if: >-
+          steps.rep.outputs.has_manual != 'true' &&
+          (steps.rep.outputs.has_unsupported == 'true' ||
+           steps.rep.outputs.has_already == 'true') &&
+          env.DRY_RUN != '1'
+        run: |
+          set -euo pipefail
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          git add "$SKILL/known_devices.json"
+          if git diff --cached --quiet; then
+            echo "状态文件无变化，跳过提交"
+          else
+            git commit -m "记录 $(cat "$RUNNER_TEMP/names_unsupported.txt") 为不支持设备"
+            git push origin HEAD:main
+          fi
+
+      - name: 入库新设备并发布 Release
+        if: >-
+          steps.rep.outputs.has_supported == 'true' &&
+          steps.rep.outputs.has_manual != 'true' &&
+          env.DRY_RUN != '1'
+        env:
+          V: ${{ steps.ver.outputs.next }}
+          PREV: ${{ steps.ver.outputs.prev }}
+        run: |
+          set -euo pipefail
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+
+          # 只改 version 的值，保留 manifest.json 其余排版与键序
+          python3 - "$V" <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          v = sys.argv[1]
+          p = pathlib.Path("manifest.json")
+          s = p.read_text(encoding="utf-8")
+          new, n = re.subn(r'("version"\s*:\s*")[^"]*(")',
+                           lambda m: m.group(1) + v + m.group(2), s, count=1)
+          if n != 1:
+              sys.exit("manifest.json 中未找到唯一的 version 字段")
+          p.write_text(new, encoding="utf-8")
+          print(f"manifest.json version -> {v}")
+          PY
+
+          git add device.py manifest.json
+          git commit -m "新增 $(cat "$RUNNER_TEMP/names_supported.txt")"
+
+          # tag 必须指向本轮提交的 SHA：`--target main` 会被期间的人为推送带偏，
+          # 且 tag 已存在时 Release API 会忽略 target、复用旧 tag。
+          SHA=$(git rev-parse HEAD)
+          if git rev-parse -q --verify "refs/tags/$V" >/dev/null; then
+            echo "::error::版本 tag $V 已存在，拒绝覆盖；请人工确认版本号"
+            exit 1
+          fi
+          git tag "$V" "$SHA"
+          git push --atomic origin HEAD:main "refs/tags/$V"
+          echo "已推送 $SHA（tag $V）"
+
+          : > "$RUNNER_TEMP/notes.md"
+          if [ -n "$PREV" ]; then
+            git log --reverse --format=%s "$PREV"..HEAD >> "$RUNNER_TEMP/notes.md"
+            printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
+              "$GITHUB_REPOSITORY" "$PREV" "$V" >> "$RUNNER_TEMP/notes.md"
+          else
+            printf '首个发布\n' >> "$RUNNER_TEMP/notes.md"
+          fi
+          cat "$RUNNER_TEMP/notes.md"
+
+          # --verify-tag：tag 必须已存在且由上面这一行创建，不让 gh 自行决定指向
+          gh release create "$V" --title "$V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+
+      - name: 补齐所有缺失的 Release（历史遗留 + 上轮失败）
+        # 与其它写入步骤同一门控：本轮有未知 objectid 时「整轮零写入」，
+        # 历史 Release 补发也算写入，必须一起停 —— 否则会出现
+        # "本轮不发版但改了 Release" 的半状态。
+        if: >-
+          env.DRY_RUN != '1' &&
+          steps.rep.outputs.has_manual != 'true'
+        run: |
+          set -euo pipefail
+          # 与本轮是否发布新设备无关地扫一遍：过去某轮"提交+tag 推上去了但 Release 建失败"
+          # 时，若只在"最新 tag"上检查，会被随后发布的新版本永久顶掉（0.3.5 缺 Release、
+          # 本轮发 0.3.6 → 下轮只看 0.3.6，0.3.5 再也补不上）。
+          #
+          # 判据只看 tag 自身：提交作者是 bot 且标题以「新增 」开头（bot 的发版提交）。
+          # 幂等：已有 Release 的 tag 直接跳过；本轮新发布的版本此时也已存在，同样跳过。
+          mapfile -t tags < <(git tag -l --sort=v:refname)
+          backfilled=0
+          for i in "${!tags[@]}"; do
+            V="${tags[$i]}"
+            author=$(git log -1 --format=%ae "$V" 2>/dev/null || true)
+            subject=$(git log -1 --format=%s "$V" 2>/dev/null || true)
+            [ "$author" = "$BOT_EMAIL" ] || continue
+            [ "${subject#新增 }" != "$subject" ] || continue
+            if gh release view "$V" >/dev/null 2>&1; then
+              continue
+            fi
+            # tag 可能只存在于本地（上一轮 push 被拒/中断）
+            if ! git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null 2>&1; then
+              git push origin "refs/tags/$V"
+              echo "已补推 tag $V"
+            fi
+            prev=""
+            [ "$i" -gt 0 ] && prev="${tags[$((i - 1))]}"
+            : > "$RUNNER_TEMP/notes.md"
+            if [ -n "$prev" ]; then
+              git log --reverse --format=%s "$prev".."$V" >> "$RUNNER_TEMP/notes.md"
+              printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
+                "$GITHUB_REPOSITORY" "$prev" "$V" >> "$RUNNER_TEMP/notes.md"
+            else
+              printf '首个发布\n' >> "$RUNNER_TEMP/notes.md"
+            fi
+            gh release create "$V" --title "$V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+            echo "已补发 Release $V"
+            backfilled=$((backfilled + 1))
+          done
+          echo "本轮补齐 Release 数量：$backfilled"
+
+      - name: 汇总
+        if: always()
+        run: |
+          {
+            echo "### 设备更新检查结果"
+            echo ""
+            echo "- 流水线退出码：\`${{ steps.pipe.outputs.exit }}\`"
+            printf '%s\n' "- 可入库：\`${{ steps.rep.outputs.has_supported }}\`｜需人工补全：\`${{ steps.rep.outputs.has_manual }}\`｜不支持：\`${{ steps.rep.outputs.has_unsupported }}\`｜待核验 pd_id：\`${{ steps.rep.outputs.has_already }}\`"
+            if [ -f "$RUNNER_TEMP/names_supported.txt" ]; then
+              printf '%s\n' "- 入库设备：$(cat "$RUNNER_TEMP/names_supported.txt")"
+            fi
+            if [ -f "$RUNNER_TEMP/names_unsupported.txt" ]; then
+              printf '%s\n' "- 不支持设备：$(cat "$RUNNER_TEMP/names_unsupported.txt")"
+            fi
+            if [ "${{ steps.pending.outputs.detected }}" = "true" ]; then
+              printf '%s\n' "- 检测到上轮未完成的发布：\`${{ steps.pending.outputs.version }}\`"
+            fi
+            if [ "${DRY_RUN}" = "1" ]; then
+              echo "- **dry_run=true**：本轮只检查，未提交、未发版、未开 issue。"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
