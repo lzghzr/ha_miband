@@ -51,6 +51,26 @@ dry-run（不带 `--apply`）**只保护 `device.py`**，不是完全不写盘�
 
 网络/DNS/超时/非 404 状态码/响应缺 `services` 都判为**结论未知**：该设备本次不写入任何分区，下次运行仍作为新设备出现，脚本以退出码 `2` 提示需要重跑。只有真实的 HTTP 404 才登记为 `not_registered`。因此退出码 `2` 时应重跑，而不是把结果当作"该设备不支持"。
 
+连**设备列表本身**都没抓到（超时 / 接口 `code!=0` / 返回里没有 `list`）属于"整轮无法开始"：同样退出码 `2`，且 `--report` 里 `error` 字段会写明原因——绝不拿旧配置当"没有新设备"。
+
+### --report：给 CI 用的机器可读结果
+
+```bash
+python3 pipeline.py --apply --report "$RUNNER_TEMP/report.json"
+```
+
+字段：`new_devices` / `supported`（含 `unknown_objectids`）/ `unsupported`（含 `reason`）/ `fetch_failed` / `needs_manual_work` / `error` / `exit_code`。每个出口都会落盘。
+
+`unsupported.reason` 除 `not_registered` / `no_objectids` 外，还有 `already_recorded`：同一个 model 出现了新的 `pd_id`（状态里已有该 model 的不支持结论）——**不自动继承旧结论**，交给人工核验。
+
+判定一律读这个 JSON，不要解析中文控制台输出（设备名来自外部接口，可能含换行等会污染判定的字符）。
+
+### GitHub Actions
+
+`.github/workflows/device-check.yml`（每周一 03:17 UTC + 手动触发，手动默认 `dry_run=true`）：
+新设备可支持 → bot 入库 + 打轻量 tag + 发 Release；不支持 → 开 issue + 提交状态；
+有未识别 objectid → **整轮零写入**，只开 issue；抓取失败 → 整轮中止。
+
 ## 状态文件 known_devices.json
 
 JSON 键因格式限制存的是 `str(pd_id)`，判断一律以条目内的 `pd_id` 字段（int）为准：
