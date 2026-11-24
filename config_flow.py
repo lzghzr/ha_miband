@@ -20,8 +20,10 @@ from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .cloud import (
+    XiaomiCloudBLEDevice,
     XiaomiCloudException,
     XiaomiCloudInvalidAuthenticationException,
+    XiaomiCloudQrCode,
     XiaomiCloudTokenFetch,
 )
 from .const import DOMAIN
@@ -56,8 +58,9 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered_device: DeviceData | None = None
         self._discovered_devices: dict[str, Discovery] = {}
         self._discovery_info: BluetoothServiceInfo | None = None
-        self._fetcher: XiaomiCloudTokenFetch | None = None
-        self._login_task: asyncio.Task | None = None
+        self._qrcode_init_lock = asyncio.Lock()
+        self._login_qrcode: XiaomiCloudQrCode | None = None
+        self._login_task: asyncio.Task[XiaomiCloudBLEDevice | None] | None = None
 
     async def _async_wait_for_full_advertisement(
         self, discovery_info: BluetoothServiceInfo, device: DeviceData
@@ -157,11 +160,11 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         description_placeholders: dict[str, str] = {}
         if user_input is not None:
             session = async_get_clientsession(self.hass)
-            self._fetcher = XiaomiCloudTokenFetch(
+            fetcher = XiaomiCloudTokenFetch(
                 user_input[CONF_USERNAME], user_input[CONF_PASSWORD], session
             )
             try:
-                device_details = await self._fetcher.get_device_info(
+                device_details = await fetcher.get_device_info(
                     self._discovery_info.address
                 )
             except XiaomiCloudInvalidAuthenticationException as ex:
@@ -201,48 +204,43 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_qrcode_cloud_auth(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        if self._fetcher is None:
-            session = async_get_clientsession(self.hass)
-            self._fetcher = XiaomiCloudTokenFetch(session=session)
+        assert self._discovery_info
 
-        try:
-            login_qrcode = await self._fetcher.get_login_qrcode()
-        except XiaomiCloudInvalidAuthenticationException as ex:
-            _LOGGER.debug("Failed to connect to MI API: %s", ex, exc_info=True)
-            raise AbortFlow(
-                "api_error", description_placeholders={"error_detail": str(ex)}
-            ) from ex
+        # Re-entering this step must show the QR code for the task already polling.
+        async with self._qrcode_init_lock:
+            if self._login_task is None:
+                session = async_get_clientsession(self.hass)
+                fetcher = XiaomiCloudTokenFetch(session=session)
+                try:
+                    self._login_qrcode = await fetcher.get_login_qrcode()
+                except XiaomiCloudInvalidAuthenticationException as ex:
+                    _LOGGER.debug("Failed to connect to MI API: %s", ex, exc_info=True)
+                    raise AbortFlow(
+                        "api_error", description_placeholders={"error_detail": str(ex)}
+                    ) from ex
 
-        async def _wait_for_authorization() -> None:
-            _LOGGER.debug("Waiting for device authorization")
-            try:
-                self._device_details = await self._fetcher.get_device_info(
-                    self._discovery_info.address
+                self._login_task = self.hass.async_create_task(
+                    fetcher.get_device_info(self._discovery_info.address)
                 )
-                _LOGGER.debug("Authorization successful")
-            except XiaomiCloudInvalidAuthenticationException as ex:
-                _LOGGER.debug("Failed to connect to MI API: %s", ex, exc_info=True)
-                raise AbortFlow(
-                    "api_error", description_placeholders={"error_detail": str(ex)}
-                ) from ex
 
-        if self._login_task is None:
-            _LOGGER.debug("Creating task for device authorization")
-            self._login_task = self.hass.async_create_task(_wait_for_authorization())
+        task = self._login_task
+        if task.done():
+            if not task.cancelled():
+                if (error := task.exception()) is None:
+                    return self.async_show_progress_done(
+                        next_step_id="qrcode_finish_login"
+                    )
+                _LOGGER.debug("QR code login failed (%s)", type(error).__name__)
+            return self.async_show_progress_done(
+                next_step_id="qrcode_connection_failed"
+            )
 
-        if self._login_task.done():
-            _LOGGER.debug("Login task is done, checking results")
-            if self._login_task.exception():
-                return self.async_show_progress_done(
-                    next_step_id="qrcode_connection_failed"
-                )
-            return self.async_show_progress_done(next_step_id="qrcode_finish_login")
-
+        assert self._login_qrcode is not None
         return self.async_show_progress(
             step_id="qrcode_cloud_auth",
             progress_action="wait_for_authorization",
-            description_placeholders=asdict(login_qrcode),
-            progress_task=self._login_task,
+            description_placeholders=asdict(self._login_qrcode),
+            progress_task=task,
         )
 
     async def async_step_qrcode_finish_login(
@@ -250,9 +248,10 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle the finalization of login."""
         _LOGGER.debug("Finalizing authorization")
-        if self._device_details:
+        assert self._login_task is not None
+        if device_details := self._login_task.result():
             return await self.async_step_get_encryption_key_4_5(
-                {"bindkey": self._device_details.bindkey}
+                {"bindkey": device_details.bindkey}
             )
         return self.async_abort(reason="no_devices_found")
 
@@ -266,8 +265,7 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
                 description_placeholders=self.context["title_placeholders"],
             )
         # Reset state and try again
-        self._device_details = None
-        self._fetcher = None
+        self._login_qrcode = None
         self._login_task = None
         return await self.async_step_get_encryption_key_4_5_choose_method()
 

@@ -38,6 +38,14 @@ from .device import DEVICE_TYPES
 
 _LOGGER = logging.getLogger(__name__)
 
+# Smart Band 10 variants sharing the o66 firmware can initialize the
+# MiBeacon v5 nonce with the standard edition PID before loading product.pid.
+_MIBEACON_V5_NONCE_PID_FALLBACKS = {
+    0x59FB: 0x59FA,  # NFC
+    0x59FC: 0x59FA,  # Ceramic
+    0x6188: 0x59FA,  # Glimmer
+}
+
 
 def to_mac(addr: bytes) -> str:
     """Return formatted MAC address"""
@@ -462,13 +470,29 @@ class XiaomiBluetoothDeviceData(BluetoothData):
         associated_data = b"\x11"
         mic = data[-4:]
         encrypted_payload = data[i:-7]
+        ciphertext = encrypted_payload + mic
 
         assert self.cipher is not None  # nosec
-        # decrypt the data
         try:
-            decrypted_payload = self.cipher.decrypt(
-                nonce, encrypted_payload + mic, associated_data
-            )
+            try:
+                decrypted_payload = self.cipher.decrypt(
+                    nonce, ciphertext, associated_data
+                )
+            except InvalidTag:
+                if data[1] >> 4 != 5:
+                    raise
+                fallback_pid = _MIBEACON_V5_NONCE_PID_FALLBACKS.get(
+                    int.from_bytes(data[2:4], "little")
+                )
+                if fallback_pid is None:
+                    raise
+
+                fallback_nonce = (
+                    nonce[:6] + fallback_pid.to_bytes(2, "little") + nonce[8:]
+                )
+                decrypted_payload = self.cipher.decrypt(
+                    fallback_nonce, ciphertext, associated_data
+                )
         except InvalidTag as error:
             if self.decryption_failed is True:
                 # we only ask for reautentification till
