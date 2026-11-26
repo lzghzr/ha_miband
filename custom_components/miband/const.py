@@ -18,7 +18,7 @@ ABNORMAL_VITAL_SIGNS_TYPE: Final = {
     1: "high_heart_rate",
     2: "low_heart_rate",
     3: "low_blood_oxygen",
-    4: "high_blood_pressure",
+    4: "high_pressure",
     5: "abnormal_heart_beats",
     256: "other",
 }

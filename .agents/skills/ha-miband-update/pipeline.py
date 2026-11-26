@@ -15,11 +15,10 @@
   有有意义 objectid 但未 --apply 的设备不登记, 下次仍作为新设备出现,
   直到 apply 写入 device.py 后由 existing 自然过滤。
 
-注意 dry-run 并非完全不写盘, 它保护的对象只有 device.py:
+dry-run 不改设备表和已审核的规格基线:
   每次运行都重写 get_config_info_by_category*.json(抓取结果)。
   step2 一旦确认某设备无需入库, 即便 dry-run 也会写入 known_devices.json,
   以便下次运行跳过它(否则每跑一次都要重新报告同一台设备)。
-  只有 device.py 需要 --apply 才会被写入。
 
 抓取失败(网络/DNS/超时/非 404 状态码/无 services)与真实"未注册"严格区分:
   只有真的 HTTP 404 才登记 not_registered; 结论未知的设备本次不登记,
@@ -37,11 +36,13 @@
 CI 支持:
   --report <path> 把机器可读结果写成 JSON(每个出口都落盘), 供 CI 判定;
   不要把中文控制台输出当判据。字段:
+    existing_specs    - 在库规格核对数量及逐型号变更（未请求核对时为 null）
     new_devices       - step1 发现的新设备
     supported         - 有有意义 objectid 的设备
                         (unknown_objectids 非空 = 需人工补全, 不可自动发布)
     unsupported       - 确认无需入库的设备及原因
                         (not_registered / no_objectids / already_recorded)
+    unreleased        - 目录已列出但规格未发布的设备，下轮重查
     fetch_failed      - 抓取失败、结论未知的设备(不得当作不支持)
     needs_manual_work - 是否任意设备存在未识别 objectid
     exit_code         - 与进程退出码一致
@@ -55,25 +56,19 @@ import json
 import os
 import re
 import sys
+from functools import cache
+from pathlib import Path
+from shutil import copy2
+from tempfile import TemporaryDirectory
 
 import get_config_info_by_category
+import released_specs as specs
 
-# ---------------------------------------------------------------------------
-# 路径解析: 允许从任意目录(SKILL/ 或项目根目录)运行本脚本。
-#   SCRIPT_DIR - 本脚本所在目录(SKILL/), 存放 json 数据文件。
-#   ROOT_DIR   - 项目根目录(含 device.py/parser.py 的目录), 向上查找得到。
-# ---------------------------------------------------------------------------
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = SCRIPT_DIR
-while not os.path.exists(os.path.join(ROOT_DIR, "device.py")) or \
-        not os.path.exists(os.path.join(ROOT_DIR, "parser.py")):
-    parent = os.path.dirname(ROOT_DIR)
-    if parent == ROOT_DIR:
-        sys.exit("无法定位项目根目录(未找到 device.py / parser.py)")
-    ROOT_DIR = parent
-
-DEVICE_FILE = os.path.join(ROOT_DIR, "device.py")
-PARSER_FILE = os.path.join(ROOT_DIR, "parser.py")
+# 目录均相对脚本定位，周检和手动调用共用相同的集成目录。
+SCRIPT_DIR = Path(__file__).resolve().parent
+COMPONENT_DIR = SCRIPT_DIR.parents[2] / "custom_components" / "miband"
+DEVICE_FILE = COMPONENT_DIR / "device.py"
+PARSER_FILE = COMPONENT_DIR / "parser.py"
 
 # 持久化文件(单文件, 内含 known_devices / not_supported 两个分区)
 DEVICES_JSON = os.path.join(SCRIPT_DIR, "known_devices.json")
@@ -93,8 +88,12 @@ FUNC_TO_CLASS = {
     "eiid1105": ("event", "MiBandEventDeviceClass.MODE"),
 }
 
-# MODE 事件存在时, DeviceEntry 额外带出的 binary sensor
-MODE_EXTRA_BINARY = "MiBandBinarySensorDeviceClass.NODISTURB"
+MODE_STATES = {
+    "0": ("Mute On", "MiBandBinarySensorDeviceClass.MUTE"),
+    "1": ("Mute Off", "MiBandBinarySensorDeviceClass.MUTE"),
+    "2": ("No Disturb On", "MiBandBinarySensorDeviceClass.NODISTURB"),
+    "3": ("No Disturb Off", "MiBandBinarySensorDeviceClass.NODISTURB"),
+}
 
 MIOT_SPEC_URL = (
     "https://miot-spec.org/miot-spec-v2/instance"
@@ -113,7 +112,7 @@ def load_device_entries() -> dict[int, dict]:
     截断或漏匹配, 于是已入库的设备下一轮又被当成新设备, 反复插入同一个 key。
     AST 天然按 Python 字符串语义还原, 不存在这个问题。
     """
-    src = open(DEVICE_FILE).read()
+    src = Path(DEVICE_FILE).read_text(encoding="utf-8")
     tree = ast.parse(src)
     entries: dict[int, dict] = {}
     for node in ast.walk(tree):
@@ -149,7 +148,7 @@ def load_device_entries() -> dict[int, dict]:
 
 def load_xiaomi_objectid_dict() -> dict[int, str]:
     """解析 parser.py 的 xiaomi_dataobject_dict, 返回 {objectid:int -> func_name:str}."""
-    src = open(PARSER_FILE).read()
+    src = Path(PARSER_FILE).read_text(encoding="utf-8")
     # 提取 xiaomi_dataobject_dict 字典体
     m = re.search(r"xiaomi_dataobject_dict\s*=\s*\{(.*?)\n\}", src, re.S)
     if not m:
@@ -199,17 +198,20 @@ def step1_devices(config_zh, config_en, existing) -> list[dict]:
             by_pd_en[it["pd_id"]] = it
 
     new_devices = []
-    for pid, item in sorted(by_pd.items()):
+    for pid, item in sorted((by_pd_en | by_pd).items()):
         if pid in existing:
             continue
-        en = by_pd_en.get(pid, {})
+        en_name = by_pd_en.get(pid, {}).get("pd_name")
+        zh_name = by_pd.get(pid, {}).get("pd_name")
+        if not get_config_info_by_category.has_chinese_name(zh_name):
+            zh_name = en_name or zh_name
         new_devices.append(
             {
                 "pd_id": pid,
                 "model": item.get("model"),
                 "blt_name": item.get("blt_name"),
-                "pd_name_zh": item.get("pd_name"),
-                "pd_name_en": en.get("pd_name"),
+                "pd_name_zh": zh_name,
+                "pd_name_en": en_name,
             }
         )
     return new_devices
@@ -244,47 +246,34 @@ def model_to_url(model: str) -> str:
     return MIOT_SPEC_URL.format(model_dashed=model_dashed)
 
 
-def fetch_instance(model: str) -> tuple[dict | None, str]:
+def fetch_instance(model: str, index: dict, get_instance) -> tuple[dict | None, str]:
     """抓取 miot-spec instance, 返回 (instance, status)。
 
     status 取值:
       "ok"             - 抓取成功, instance 可用。
       "not_registered" - 真实 HTTP 404, 确认该 model 未注册。
+      "unreleased"     - 目录已列出该型号，但还没有正式发布的规格。
       "error"          - 网络/解析/服务端异常, 结论未知。
 
     只有 "not_registered" 才能登记为不支持; "error" 必须留待下次重试,
     否则一次网络抖动会把本来能支持的设备永久钉成不支持。
     """
-    import urllib.error
-    import urllib.request
+    from urllib.error import HTTPError
 
-    url = model_to_url(model)
     try:
-        with urllib.request.urlopen(url, timeout=30) as resp:
-            instance = json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return None, "not_registered"
-        print(
-            f"    [警告] 抓取 {model} 失败: HTTP {e.code}(非 404), 结论未知, 不登记。",
-            file=sys.stderr,
-        )
+        released = specs.latest(index, model)
+        if not released and model in index:
+            return None, "unreleased"
+        urn = released or model_to_url(model).split("?type=", 1)[1]
+        try:
+            return get_instance(urn), "ok"
+        except HTTPError as e:
+            if not released and e.code == 404:
+                return None, "not_registered"
+            raise
+    except (OSError, KeyError, TypeError, ValueError) as e:
+        print(f"    [警告] {model} 规格抓取失败: {e}", file=sys.stderr)
         return None, "error"
-    except Exception as e:  # noqa: BLE001
-        print(
-            f"    [警告] 抓取 {model} 失败: {e}(网络/解析错误), 结论未知, 不登记。",
-            file=sys.stderr,
-        )
-        return None, "error"
-
-    # 200 但没有 services 视为可疑响应, 不据此判定"无需入库"。
-    if not (instance.get("services") or []):
-        print(
-            f"    [警告] {model} 的 miot-spec 无 services 字段, 响应可疑, 不登记。",
-            file=sys.stderr,
-        )
-        return None, "error"
-    return instance, "ok"
 
 
 def compute_objectids(instance: dict) -> list[dict]:
@@ -323,7 +312,7 @@ def compute_objectids(instance: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 # step3 - 生成 DeviceEntry 代码块
 # ---------------------------------------------------------------------------
-def objectid_to_entry(obj_dict: dict[int, str]) -> tuple[set, set, set]:
+def objectid_to_entry(obj_dict: dict, objects: dict | None = None) -> tuple[set, set, set, list]:
     """把某设备的有意义 objectid 集合映射到 (binary, event, sensor) 类集合.
 
     未识别的 objectid 会单独返回, 交由调用方提醒人工补全。
@@ -335,6 +324,18 @@ def objectid_to_entry(obj_dict: dict[int, str]) -> tuple[set, set, set]:
         if info is None:
             unknown.append(objectid)
             continue
+        if func == "eiid1105" and objects is not None:
+            obj = objects.get(f"0x{objectid:04X}", {})
+            args = obj.get("arguments", [])
+            values = args[0].get("values", {}) if len(args) == 1 else {}
+            if (obj.get("type") != "mode-changed:00005100"
+                    or not values or args[0]["type"] != "mode:00000008"
+                    or args[0]["format"] != "uint8"
+                    or any(code not in MODE_STATES or labels[0] != MODE_STATES[code][0]
+                           for code, labels in values.items())):
+                unknown.append(objectid)
+                continue
+            binary.update(MODE_STATES[code][1] for code in values)
         kind, member = info
         if kind == "binary":
             binary.add(member)
@@ -342,9 +343,9 @@ def objectid_to_entry(obj_dict: dict[int, str]) -> tuple[set, set, set]:
             event.add(member)
         elif kind == "sensor":
             sensor.add(member)
-    # MODE 事件存在 -> 额外带出 NODISTURB binary sensor
-    if "MiBandEventDeviceClass.MODE" in event:
-        binary.add(MODE_EXTRA_BINARY)
+    if objects is None and "MiBandEventDeviceClass.MODE" in event:
+        # Compatibility for callers with only the legacy objectid map.
+        binary.add("MiBandBinarySensorDeviceClass.NODISTURB")
     return binary, event, sensor, unknown
 
 
@@ -399,10 +400,32 @@ def insert_entry_sorted(src: str, pid: int, block: str) -> str:
 # ---------------------------------------------------------------------------
 # 主流程
 # ---------------------------------------------------------------------------
+def apply_entries(src, baseline):
+    """Stage both files before replacing either; undo the first replace if the second fails."""
+    table = Path(DEVICE_FILE)
+    with TemporaryDirectory(dir=table.parent) as tmp:
+        staged = Path(tmp) / table.name
+        staged.write_text(src, encoding="utf-8")
+        if baseline is None:
+            staged.replace(table)
+            return
+        with TemporaryDirectory(dir=specs.BASELINE.parent) as spec_tmp:
+            snapshot = Path(spec_tmp) / specs.BASELINE.name
+            specs.save_snapshot(snapshot, baseline)
+            original = Path(tmp) / "original"
+            copy2(table, original)
+            staged.replace(table)
+            try:
+                snapshot.replace(specs.BASELINE)
+            except OSError:
+                original.replace(table)
+                raise
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="小米手环设备更新流水线")
     ap.add_argument("--apply", action="store_true", help="真正写入 device.py (默认 dry-run)")
-    ap.add_argument("--only", choices=["devices", "objectids", "generate"], help="只跑某一步")
+    ap.add_argument("--only", choices=["devices", "objectids", "generate", "existing"], help="只跑某一步")
     ap.add_argument("--model", help="只处理指定 model")
     ap.add_argument("--zh", default=os.path.join(SCRIPT_DIR, "get_config_info_by_category.json"),
                     help="中文配置 JSON 路径")
@@ -410,37 +433,64 @@ def main() -> int:
                     help="英文配置 JSON 路径")
     ap.add_argument("--report", metavar="PATH",
                     help="把机器可读的结果 JSON 写到该路径(供 CI 判定, 不靠解析中文输出)")
+    ap.add_argument("--check-existing", action="store_true", help="在发现新设备前检查在库型号的已发布规格")
+    ap.add_argument("--spec-output", type=Path, metavar="DIR",
+                    help="导出已有型号的候选基线和有差异的原始规格（不接受基线）")
     args = ap.parse_args()
+    check_existing = args.check_existing or args.only == "existing"
+    if args.spec_output and not check_existing:
+        ap.error("--spec-output 需和 --check-existing 或 --only existing 一起使用")
 
     # 机器可读报告: 每个出口都会落盘一次, 字段含义见文件顶部说明。
     # error 字段只在"连设备列表都没抓到"这类非设备级失败时出现。
     report = {
+        "existing_specs": None,
         "new_devices": [],
         "supported": [],
         "unsupported": [],
+        "unreleased": [],
         "fetch_failed": [],
         "needs_manual_work": False,
         "error": None,
         "exit_code": 0,
     }
-    fetch_failed = []
 
     def finish(code: int = 0) -> int:
         """统一出口: 写机器可读报告; 有抓取失败的设备时以 2 退出。"""
-        if fetch_failed:
+        if fetch_failed := report["fetch_failed"]:
             print(
                 f"\n[注意] 本次 {len(fetch_failed)} 个设备抓取失败, 未登记任何结论, "
                 f"请重跑: {', '.join(d['model'] for d in fetch_failed)}"
             )
             code = 2
-        report["needs_manual_work"] = any(
-            s["unknown_objectids"] for s in report["supported"]
-        )
         report["exit_code"] = code
         if args.report:
             with open(args.report, "w", encoding="utf-8") as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
         return code
+
+    existing = load_device_entries()
+    objid_to_func = load_xiaomi_objectid_dict()
+    index = None
+    baseline = None
+    # A model can also appear as a new PID. Share the exact released document
+    # across both consumers, but never reuse last week's response.
+    get_instance = cache(specs.instance)
+    existing_models = {device["model"] for device in existing.values()}
+    if check_existing:
+        try:
+            index = specs.released_index()
+            baseline = json.loads(specs.BASELINE.read_text(encoding="utf-8"))
+            result = specs.audit(existing, index, baseline, objid_to_func, get_instance, args.spec_output)
+        except (OSError, KeyError, TypeError, ValueError) as e:
+            report["error"] = f"已有型号规格核对失败: {e}"
+            print(report["error"], file=sys.stderr)
+            return finish(2)
+        report["existing_specs"] = result
+        report["needs_manual_work"] = any(c["unknown_objectids"] for c in result["changes"].values())
+        print(f"[已有型号] 核对 {result['checked']} 个型号，{len(result['changes'])} 个规格有变化。")
+        if args.only == "existing":
+            return finish()
 
     # ---- 准备: 抓取并更新配置 JSON(每次运行都刷新) ----
     # 抓取失败(网络/DNS/超时/接口返回 code!=0)属于"整轮无法开始", 不是某台设备的问题:
@@ -449,12 +499,7 @@ def main() -> int:
         print("配置 JSON 缺失, 先抓取...")
     for lang, path in (("zh", args.zh), ("en", args.en)):
         try:
-            data = get_config_info_by_category.fetch(lang)
-            if data.get("code") not in (None, 0):
-                raise RuntimeError(f"接口返回 code={data.get('code')}")
-            res = data.get("result") or {}
-            if not res.get("list"):
-                raise RuntimeError("接口未返回设备列表")
+            data = get_config_info_by_category.fetch_catalog(lang)
         except Exception as e:  # noqa: BLE001
             msg = f"抓取 {lang} 设备列表失败: {type(e).__name__}: {e}"
             print(f"\n[错误] {msg}", file=sys.stderr)
@@ -462,13 +507,10 @@ def main() -> int:
             return finish(2)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"[{lang}] 已更新 {path}: list={len(res.get('list') or [])}")
+        print(f"[{lang}] 已更新 {path}: list={len(data['result']['list'])}")
 
     config_zh = json.load(open(args.zh, encoding="utf-8"))
     config_en = json.load(open(args.en, encoding="utf-8"))
-
-    existing = load_device_entries()
-    objid_to_func = load_xiaomi_objectid_dict()
 
     # 设备状态清单(单文件两分区, 自动读写)
     devices_state = load_json(
@@ -510,6 +552,7 @@ def main() -> int:
         targets = [d for d in new_devices if d["model"] == args.model]
 
     analyzed = []
+    enroll = {}
     newly_unsupported = {}
     unsupported_models = {v["model"] for v in not_supported.values()}
 
@@ -520,6 +563,10 @@ def main() -> int:
             "reason": reason,
         })
 
+    @cache
+    def get_new_model(model):
+        return fetch_instance(model, index, get_instance)
+
     for d in targets:
         model = d["model"]
         if model in unsupported_models:
@@ -529,10 +576,20 @@ def main() -> int:
             record_unsupported(d, "already_recorded")
             continue
         print(f"\n[step2] 分析 {model}:")
-        inst, status = fetch_instance(model)
+        if index is None:
+            try:
+                index = specs.released_index()
+            except (OSError, KeyError, TypeError, ValueError) as e:
+                report["error"] = f"已发布规格目录抓取失败: {e}"
+                print(report["error"], file=sys.stderr)
+                return finish(2)
+        inst, status = get_new_model(model)
+        if status == "unreleased":
+            report["unreleased"].append({"pd_id": d["pd_id"], "model": model})
+            print(f"    {model} 的规格尚未发布，下次重查。")
+            continue
         if status == "error":
             # 结论未知: 不登记, 下次运行仍作为新设备出现
-            fetch_failed.append(d)
             report["fetch_failed"].append({"pd_id": d["pd_id"], "model": model})
             print(f"    ✗ {model} 抓取失败, 本次不登记(下次重试)。")
             continue
@@ -566,12 +623,24 @@ def main() -> int:
                 f"    0x{o['objectid']:04X} siid={o['siid']} eiid={o['eiid']} "
                 f"{o['kind']:<8} {o['description']}{mark}"
             )
-        binary, event, sensor, unknown = objectid_to_entry(obj_dict)
+        enroll_model = args.apply and not args.only and model not in existing_models
+        try:
+            need_spec = enroll_model or check_existing or "eiid1105" in obj_dict.values()
+            spec = specs.snapshot(inst) if need_spec else None
+        except (KeyError, TypeError, ValueError) as e:
+            report["error"] = f"{model} 规格结构无效: {e}"
+            return finish(2)
+        binary, event, sensor, unknown = objectid_to_entry(obj_dict, spec["objects"] if spec else None)
         if unknown:
+            report["needs_manual_work"] = True
             print(
                 f"    ⚠ 存在 {len(unknown)} 个未识别的 objectid, "
                 f"需要人工补全 parser.py: {['0x%04X' % u for u in unknown]}"
             )
+        if enroll_model and not unknown:
+            enroll[model] = spec
+            if not specs.latest(index, model):
+                enroll[model]["source"] = "direct"
         d.update(binary=binary, event=event, sensor=sensor, unknown=unknown)
         analyzed.append(d)
         report["supported"].append({
@@ -619,7 +688,13 @@ def main() -> int:
         print("\n[dry-run] 未写入 device.py (加 --apply 才会真正写入)。")
         return finish()
 
-    src = open(DEVICE_FILE).read()
+    if report["needs_manual_work"] or report["fetch_failed"]:
+        print("[apply] 本轮仍需核验，保留现有设备表和规格基线。")
+        return finish()
+    if not generated:
+        return finish()
+
+    src = Path(DEVICE_FILE).read_text(encoding="utf-8")
     # 按 dict key 升序插入到各自正确的位置
     for pid, block in sorted(generated):
         src = insert_entry_sorted(src, pid, block)
@@ -630,8 +705,19 @@ def main() -> int:
     except SyntaxError as e:
         print(f"\n[apply] 中止：生成的 device.py 语法错误（第 {e.lineno} 行: {e.msg}）", file=sys.stderr)
         print("        可能原因：设备名含引号/反斜杠/换行等特殊字符。未写入任何文件。", file=sys.stderr)
-        return 1
-    open(DEVICE_FILE, "w").write(src)
+        report["error"] = f"生成的设备表语法错误: {e}"
+        return finish(1)
+    try:
+        if enroll and baseline is None:
+            baseline = json.loads(specs.BASELINE.read_text(encoding="utf-8"))
+        apply_entries(src, (enroll | baseline) if enroll else None)
+        if enroll and args.spec_output:
+            candidate = args.spec_output / "candidate.json"
+            specs.save_snapshot(candidate, json.loads(candidate.read_text(encoding="utf-8")) | enroll)
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        report["error"] = f"写入设备检查结果失败: {e}"
+        print(report["error"], file=sys.stderr)
+        return finish(2)
     print(f"\n[apply] 已按 key 升序写入 {len(generated)} 个新设备到 device.py")
     return finish()
 

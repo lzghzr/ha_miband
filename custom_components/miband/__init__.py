@@ -62,11 +62,20 @@ def process_service_info(
             )
 
             hass.bus.async_fire(MIBAND_EVENT, cast(dict, miband_event))
-            async_dispatcher_send(
-                hass,
-                format_event_dispatcher_name(address, event_class),
-                miband_event,
-            )
+            if event_class in coordinator.registered_event_classes:
+                async_dispatcher_send(
+                    hass,
+                    format_event_dispatcher_name(address, event_class),
+                    miband_event,
+                )
+            else:
+                coordinator.registered_event_classes.add(event_class)
+                async_dispatcher_send(
+                    hass,
+                    format_discovered_event_class(address),
+                    event_class,
+                    miband_event,
+                )
 
     # If device isn't pending we know it has seen at least one broadcast with a payload
     # If that payload was encrypted and the bindkey was not verified then we need to reauth
@@ -118,6 +127,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MiBandConfigEntry) -> bo
     )
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    coordinator.async_seed_entities(device)
     # only start after all platforms have had a chance to subscribe
     entry.async_on_unload(coordinator.async_start())
     return True

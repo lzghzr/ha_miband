@@ -1,11 +1,12 @@
 """Support for MiBand event entities."""
 
+from homeassistant.components.event import DOMAIN as EVENT_DOMAIN
 from homeassistant.components.event import (
     EventEntity,
     EventEntityDescription,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -54,6 +55,10 @@ EVENT_DESCRIPTIONS = {
 }
 
 
+def _event_unique_id(address: str, event_class: str) -> str:
+    return f"{address}_{event_class}"
+
+
 class MiBandEventEntity(EventEntity):
     """Representation of a MiBand event entity."""
 
@@ -74,18 +79,16 @@ class MiBandEventEntity(EventEntity):
             identifiers={(DOMAIN, address)},
             connections={(dr.CONNECTION_BLUETOOTH, address)},
         )
-        self._attr_unique_id = f"{address}_{event_class}"
-        # If the event is provided then we can set the initial state
-        # since the event itself is likely what triggered the creation
-        # of this entity. We have to do this at creation time since
-        # entities are created dynamically and would otherwise miss
-        # the initial state.
-        if event:
-            self._trigger_event(event[EVENT_TYPE], event[EVENT_PROPERTIES])
+        self._attr_unique_id = _event_unique_id(address, event_class)
+        self._initial_event = event
 
     async def async_added_to_hass(self) -> None:
         """Entity added to hass."""
         await super().async_added_to_hass()
+        # Apply the discovery frame after HA restores the previous event state.
+        if (event := self._initial_event) is not None:
+            self._trigger_event(event[EVENT_TYPE], event[EVENT_PROPERTIES])
+            self._initial_event = None
         self.async_on_remove(
             async_dispatcher_connect(
                 self.hass,
@@ -110,11 +113,21 @@ async def async_setup_entry(
     address = coordinator.address
 
     device = DEVICE_TYPES[entry.data.get("pd_id")]
-    async_add_entities(MiBandEventEntity(address, key, None) for key in device.event)
+    registry = er.async_get(hass)
+    initial_classes = [
+        key
+        for key in EVENT_DESCRIPTIONS
+        if key in device.event
+        or registry.async_get_entity_id(
+            EVENT_DOMAIN, DOMAIN, _event_unique_id(address, key)
+        )
+    ]
+    coordinator.registered_event_classes.update(initial_classes)
+    async_add_entities(MiBandEventEntity(address, key, None) for key in initial_classes)
 
     @callback
     def _async_discovered_event_class(event_class: str, event: MiBandEvent) -> None:
-        """Handle a newly discovered event class with or without a postfix."""
+        """Create the entity with the event that discovered it."""
         async_add_entities([MiBandEventEntity(address, event_class, event)])
 
     entry.async_on_unload(

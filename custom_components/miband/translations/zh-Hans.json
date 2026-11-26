@@ -18,8 +18,8 @@
       "wait_for_authorization": "请点击下方地址或者扫码进行身份验证：\n[{login_url}]({login_url})\n![login_qrcode]({image_url})\n"
     },
     "step": {
-      "confirm_slow": {
-        "description": "该设备在上一分钟没有广播，因此无法确定该设备是否使用加密。这可能是因为设备的广播间隔较长。如果确认仍然添加设备，则下次收到广播时，如果有需要，系统将提示您输入其绑定密钥。"
+      "retry_discovery": {
+        "description": "一分钟内未收到 {name} 的完整蓝牙广播。请唤醒设备，靠近蓝牙接收器，再点「下一步」重试。"
       },
       "get_encryption_key_4_5": {
         "data": {

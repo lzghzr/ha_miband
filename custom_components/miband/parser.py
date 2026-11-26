@@ -215,6 +215,8 @@ xiaomi_dataobject_dict = {
     0x6461: eiid1097,
     0x6C61: eiid1097,
     0x5E69: eiid1105,
+    0x6669: eiid1105,
+    0x6E69: eiid1105,
 }
 
 
@@ -262,7 +264,6 @@ class XiaomiBluetoothDeviceData(BluetoothData):
 
     def _start_update(self, service_info: BluetoothServiceInfo) -> None:
         """Update from BLE advertisement data."""
-        _LOGGER.debug("Parsing Xiaomi BLE advertisement data: %s", service_info)
 
         for uuid, data in service_info.service_data.items():
             if uuid == SERVICE_MIBEACON:
@@ -277,7 +278,7 @@ class XiaomiBluetoothDeviceData(BluetoothData):
         i = 5  # till Frame Counter
         msg_length = len(data)
         if msg_length < i:
-            _LOGGER.debug("Invalid data length (initial check), adv: %s", data.hex())
+            _LOGGER.debug("Truncated MiBeacon header (%d bytes)", len(data))
             return False
 
         mac_readable = service_info.address
@@ -298,34 +299,24 @@ class XiaomiBluetoothDeviceData(BluetoothData):
 
         # Check that device is not of mesh type
         if frctrl_mesh != 0:
-            _LOGGER.debug(
-                "Device is a mesh type device, which is not supported. Data: %s",
-                data.hex(),
-            )
+            _LOGGER.debug("Skipping a mesh frame")
             return False
 
         # Check that version is 2 or higher
         if frctrl_version < 2:
-            _LOGGER.debug(
-                "Device is using old data format, which is not supported. Data: %s",
-                data.hex(),
-            )
+            _LOGGER.debug("Unsupported MiBeacon frame version: %d", frctrl_version)
             return False
 
         # Check that MAC in data is the same as the source MAC
         if frctrl_mac_include != 0:
             i += 6
             if msg_length < i:
-                _LOGGER.debug("Invalid data length (in MAC check), adv: %s", data.hex())
+                _LOGGER.debug("Truncated MiBeacon address (%d bytes)", len(data))
                 return False
             xiaomi_mac_reversed = data[5:11]
             xiaomi_mac = xiaomi_mac_reversed[::-1]
             if xiaomi_mac != source_mac:
-                _LOGGER.debug(
-                    "MAC address doesn't match data frame. Expected: %s, Got: %s",
-                    to_mac(xiaomi_mac),
-                    to_mac(source_mac),
-                )
+                _LOGGER.debug("MiBeacon address does not match the source address")
                 return False
         else:
             xiaomi_mac = source_mac
@@ -335,12 +326,7 @@ class XiaomiBluetoothDeviceData(BluetoothData):
         try:
             device = DEVICE_TYPES[device_id]
         except KeyError:
-            _LOGGER.info(
-                "BLE ADV from UNKNOWN Xiaomi device: MAC: %s, ADV: %s",
-                source_mac,
-                data.hex(),
-            )
-            _LOGGER.debug("Unknown Xiaomi device found. Data: %s", data.hex())
+            _LOGGER.info("Unknown Xiaomi product ID: 0x%04X", device_id)
             return False
 
         device_type = device.model
@@ -373,7 +359,7 @@ class XiaomiBluetoothDeviceData(BluetoothData):
             i += 1
             if msg_length < i:
                 _LOGGER.debug(
-                    "Invalid data length (in capability check), adv: %s", data.hex()
+                    "Truncated MiBeacon capabilities (%d bytes)", len(data)
                 )
                 return False
             capability_types = data[i - 1]
@@ -382,8 +368,8 @@ class XiaomiBluetoothDeviceData(BluetoothData):
                 i += 1
                 if msg_length < i:
                     _LOGGER.debug(
-                        "Invalid data length (in capability type check), adv: %s",
-                        data.hex(),
+                        "Truncated MiBeacon capability type (%d bytes)",
+                        len(data),
                     )
                     return False
                 capability_io = data[i - 1]
@@ -398,7 +384,7 @@ class XiaomiBluetoothDeviceData(BluetoothData):
         # check that data contains object
         if frctrl_object_include == 0:
             # data does not contain Object
-            _LOGGER.debug("Advertisement doesn't contain payload, adv: %s", data.hex())
+            _LOGGER.debug("MiBeacon frame has no object payload")
             return False
 
         self.pending = False
@@ -411,7 +397,6 @@ class XiaomiBluetoothDeviceData(BluetoothData):
             return False
 
         if payload is not None:
-            sinfo += ", Object data: " + payload.hex()
             # loop through parse_xiaomi payload
             payload_start = 0
             payload_length = len(payload)
@@ -428,7 +413,8 @@ class XiaomiBluetoothDeviceData(BluetoothData):
                     # V4/V5 encryption has an authentication tag, so we don't apply the
                     # same restriction there.
                     _LOGGER.debug(
-                        "Invalid payload data length, payload: %s", payload.hex()
+                        "Truncated MiBeacon object 0x%04X (declared %d bytes)",
+                        obj_typecode, obj_length,
                     )
                     break
                 this_start = payload_start + 3
@@ -439,9 +425,8 @@ class XiaomiBluetoothDeviceData(BluetoothData):
                         self.unhandled.update(resfunc(dobject, self, device_type))
                     else:
                         _LOGGER.info(
-                            "%s, UNKNOWN dataobject in payload! Adv: %s",
-                            sinfo,
-                            data.hex(),
+                            "%s, unknown MiBeacon object 0x%04X (%d bytes)",
+                            sinfo, obj_typecode, obj_length,
                         )
                 payload_start = next_start
 
@@ -453,7 +438,7 @@ class XiaomiBluetoothDeviceData(BluetoothData):
         """decrypt MiBeacon v4/v5 encrypted advertisements"""
         # check for minimum length of encrypted advertisement
         if len(data) < i + 9:
-            _LOGGER.debug("Invalid data length (for decryption), adv: %s", data.hex())
+            _LOGGER.debug("Encrypted MiBeacon frame too short (%d bytes)", len(data))
             return None
 
         if not self.bindkey:
@@ -493,24 +478,18 @@ class XiaomiBluetoothDeviceData(BluetoothData):
                 decrypted_payload = self.cipher.decrypt(
                     fallback_nonce, ciphertext, associated_data
                 )
-        except InvalidTag as error:
+        except InvalidTag:
             if self.decryption_failed is True:
                 # we only ask for reautentification till
                 # the decryption has failed twice.
                 self.bindkey_verified = False
             else:
                 self.decryption_failed = True
-            _LOGGER.warning("Decryption failed: %s", error)
-            _LOGGER.debug("mic: %s", mic.hex())
-            _LOGGER.debug("nonce: %s", nonce.hex())
-            _LOGGER.debug("encrypted payload: %s", encrypted_payload.hex())
+            _LOGGER.warning("MiBeacon authentication failed for product 0x%04X", self.device_id)
             return None
         if decrypted_payload is None:
             self.bindkey_verified = False
-            _LOGGER.error(
-                "Decryption failed for %s, decrypted payload is None",
-                to_mac(xiaomi_mac),
-            )
+            _LOGGER.error("MiBeacon decryption returned no payload")
             return None
         self.decryption_failed = False
         self.bindkey_verified = True

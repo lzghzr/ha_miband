@@ -5,6 +5,7 @@ import dataclasses
 from homeassistant.components.bluetooth.passive_update_processor import (
     PassiveBluetoothEntityKey,
 )
+from sensor_state_data import DeviceKey
 
 from .const import (
     MANUFACTURER,
@@ -12,7 +13,6 @@ from .const import (
     MiBandEventDeviceClass,
     MiBandSensorDeviceClass,
 )
-from .parser import DeviceKey
 
 
 @dataclasses.dataclass(frozen=True)
@@ -67,6 +67,8 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="mijia.watch.n62s",
         name="Xiaomi Watch S4 Sport",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
@@ -74,6 +76,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
             MiBandEventDeviceClass.HAND_GESTURE,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -112,6 +115,8 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="mijia.watch.o62",
         name="Xiaomi Watch S4",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
@@ -119,6 +124,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
             MiBandEventDeviceClass.HAND_GESTURE,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -127,6 +133,8 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="mijia.watch.o62lte",
         name="Xiaomi Watch S4 eSIM",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
@@ -134,6 +142,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
             MiBandEventDeviceClass.HAND_GESTURE,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -142,6 +151,8 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="mijia.watch.o62m",
         name="Xiaomi Watch S4 eSIM",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
@@ -149,6 +160,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
             MiBandEventDeviceClass.HAND_GESTURE,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -157,12 +169,15 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o65",
         name="REDMI Watch 5",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -171,12 +186,15 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o65m",
         name="REDMI Watch 5 eSIM",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -221,12 +239,14 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o66cn",
         name="Smart Band 10",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -235,12 +255,14 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o66nfc",
         name="Smart Band 10 NFC",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -249,12 +271,14 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o66tc",
         name="Smart Band 10 Ceramic Edition",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -263,6 +287,8 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o63",
         name="Xiaomi Watch S4 41mm",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
@@ -270,6 +296,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
             MiBandEventDeviceClass.HAND_GESTURE,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -278,12 +305,14 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.o66lj",
         name="Smart Band 10 Glimmer Edition",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
         ],
         event=[
             MiBandEventDeviceClass.ABNORMAL_SIGNS,
             MiBandEventDeviceClass.DAILY_VITALITY_INDEX,
+            MiBandEventDeviceClass.MODE,
             MiBandEventDeviceClass.SPORTS,
         ],
         sensor=[MiBandSensorDeviceClass.BATTERY_CHARGING],
@@ -309,6 +338,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.p62",
         name="Watch S5 46mm",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
             MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
@@ -326,6 +356,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.p62lte",
         name="Watch S5 eSIM 46mm",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
             MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,
@@ -375,6 +406,7 @@ DEVICE_TYPES: dict[int, DeviceEntry] = {
         model="miwear.watch.q63",
         name="Watch S5",
         binary_sensor=[
+            MiBandBinarySensorDeviceClass.MUTE,
             MiBandBinarySensorDeviceClass.NODISTURB,
             MiBandBinarySensorDeviceClass.SLEEP,
             MiBandBinarySensorDeviceClass.WEARING,

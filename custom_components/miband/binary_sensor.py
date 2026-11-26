@@ -92,8 +92,6 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     processor = MiBandDataProcessor(sensor_update_to_bluetooth_data_update)
 
-    pd_id = entry.data.get("pd_id")
-    coordinator.device_data.add_entities(pd_id)
     entry.async_on_unload(
         processor.async_add_entities_listener(MiBandSensorEntity, async_add_entities)
     )

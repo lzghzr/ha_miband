@@ -3,6 +3,7 @@
 import asyncio
 import dataclasses
 import logging
+from collections.abc import Mapping
 from dataclasses import asdict
 from typing import Any
 
@@ -62,29 +63,26 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         self._login_qrcode: XiaomiCloudQrCode | None = None
         self._login_task: asyncio.Task[XiaomiCloudBLEDevice | None] | None = None
 
-    async def _async_wait_for_full_advertisement(
+    async def _async_prepare_device(
         self, discovery_info: BluetoothServiceInfo, device: DeviceData
-    ) -> BluetoothServiceInfo:
-        """Sometimes first advertisement we receive is blank or incomplete.
+    ) -> ConfigFlowResult:
+        self.context["title_placeholders"] = {"name": _title(discovery_info, device)}
+        self._discovered_device = device
+        self._discovery_info = discovery_info
+        if device.pending:
+            def has_payload(service_info: BluetoothServiceInfo) -> bool:
+                device.update(service_info)
+                return not device.pending
 
-        Wait until we get a useful one.
-        """
-        if not device.pending:
-            return discovery_info
+            try:
+                self._discovery_info = await async_process_advertisements(
+                    self.hass, has_payload, {"address": discovery_info.address},
+                    BluetoothScanningMode.ACTIVE, ADDITIONAL_DISCOVERY_TIMEOUT,
+                )
+            except TimeoutError:
+                return await self.async_step_retry_discovery()
 
-        def _process_more_advertisements(
-            service_info: BluetoothServiceInfo,
-        ) -> bool:
-            device.update(service_info)
-            return not device.pending
-
-        return await async_process_advertisements(
-            self.hass,
-            _process_more_advertisements,
-            {"address": discovery_info.address},
-            BluetoothScanningMode.ACTIVE,
-            ADDITIONAL_DISCOVERY_TIMEOUT,
-        )
+        return await self.async_step_get_encryption_key_4_5_choose_method()
 
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfo
@@ -96,24 +94,7 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         if not device.supported(discovery_info):
             return self.async_abort(reason="not_supported")
 
-        title = _title(discovery_info, device)
-        self.context["title_placeholders"] = {"name": title}
-
-        self._discovered_device = device
-
-        # Wait until we have received enough information about
-        # this device to detect its encryption type
-        try:
-            self._discovery_info = await self._async_wait_for_full_advertisement(
-                discovery_info, device
-            )
-        except TimeoutError:
-            # This device might have a really long advertising interval
-            # So create a config entry for it, and if we discover it has
-            # encryption later, we can do a reauth
-            return await self.async_step_confirm_slow()
-
-        return await self.async_step_get_encryption_key_4_5_choose_method()
+        return await self._async_prepare_device(discovery_info, device)
 
     async def async_step_get_encryption_key_4_5(
         self, user_input: dict[str, Any] | None = None
@@ -283,16 +264,16 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders=self.context["title_placeholders"],
         )
 
-    async def async_step_confirm_slow(
+    async def async_step_retry_discovery(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Ack that device is slow."""
+        """Wait for a complete broadcast from the same device on retry."""
         if user_input is not None:
-            return self._async_get_or_create_entry()
+            assert self._discovery_info and self._discovered_device
+            return await self._async_prepare_device(self._discovery_info, self._discovered_device)
 
-        self._set_confirm_only()
         return self.async_show_form(
-            step_id="confirm_slow",
+            step_id="retry_discovery", data_schema=vol.Schema({}), last_step=False,
             description_placeholders=self.context["title_placeholders"],
         )
 
@@ -306,23 +287,7 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
             self._abort_if_unique_id_configured()
             discovery = self._discovered_devices[address]
 
-            self.context["title_placeholders"] = {"name": discovery.title}
-
-            # Wait until we have received enough information about
-            # this device to detect its encryption type
-            try:
-                self._discovery_info = await self._async_wait_for_full_advertisement(
-                    discovery.discovery_info, discovery.device
-                )
-            except TimeoutError:
-                # This device might have a really long advertising interval
-                # So create a config entry for it, and if we discover
-                # it has encryption later, we can do a reauth
-                return await self.async_step_confirm_slow()
-
-            self._discovered_device = discovery.device
-
-            return await self.async_step_get_encryption_key_4_5_choose_method()
+            return await self._async_prepare_device(discovery.discovery_info, discovery.device)
 
         current_addresses = self._async_current_ids(include_ignore=False)
         for discovery_info in async_discovered_service_info(self.hass, False):
@@ -361,15 +326,9 @@ class MiBandConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self.async_step_get_encryption_key_4_5_choose_method()
 
     def _async_get_or_create_entry(
-        self, bindkey: str | None = None, pd_id: int | None = None
+        self, bindkey: str, pd_id: int
     ) -> ConfigFlowResult:
-        data: dict[str, Any] = {}
-
-        if bindkey:
-            data["bindkey"] = bindkey
-
-        if pd_id:
-            data["pd_id"] = pd_id
+        data = {"bindkey": bindkey, "pd_id": pd_id}
 
         if self.source == SOURCE_REAUTH:
             return self.async_update_reload_and_abort(

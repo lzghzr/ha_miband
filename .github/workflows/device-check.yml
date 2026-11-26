@@ -1,4 +1,4 @@
-# 设备更新检查：定时抓取小米运动健康的可穿戴设备列表，发现新设备则自动入库并发 Release。
+# 设备更新检查：定时抓取小米运动健康的可穿戴设备列表，发现新设备则自动入库并发 Release；复查已有型号的已发布规格。
 #
 # 行为约定（fail-closed）：
 #   * 判定只读 pipeline.py --report 的机器可读 JSON，不解析中文控制台输出。
@@ -55,7 +55,7 @@ jobs:
         id: pending
         run: |
           set -euo pipefail
-          manifest_v=$(python3 -c "import json;print(json.load(open('manifest.json'))['version'])")
+          manifest_v=$(python3 -c "import json;print(json.load(open('custom_components/miband/manifest.json'))['version'])")
           latest_tag=$(git tag -l --sort=-v:refname | head -n1)
           latest_tag=${latest_tag:-0.0.0}
           head_author=$(git log -1 --format=%ae)
@@ -101,7 +101,7 @@ jobs:
         continue-on-error: true
         working-directory: .agents/skills/ha-miband-update
         run: |
-          python3 pipeline.py --apply --report "$RUNNER_TEMP/report.json" 2>&1 \
+          python3 pipeline.py --apply --check-existing --spec-output "$RUNNER_TEMP/specs" --report "$RUNNER_TEMP/report.json" 2>&1 \
             | tee "$RUNNER_TEMP/pipeline.log"
           echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
@@ -113,6 +113,7 @@ jobs:
           path: |
             ${{ runner.temp }}/report.json
             ${{ runner.temp }}/pipeline.log
+            ${{ runner.temp }}/specs/
           if-no-files-found: warn
 
       - name: 抓取失败则中止（本轮不做任何提交）
@@ -153,10 +154,34 @@ jobs:
               "、".join(zh(d) for d in unsupported), encoding="utf-8")
 
           print(f"has_supported={'true' if supported else 'false'}")
-          print(f"has_manual={'true' if manual else 'false'}")
+          print(f"has_spec_changes={'true' if r['existing_specs']['changes'] else 'false'}")
+          print(f"spec_count={int(r['existing_specs']['checked'])}")
+          print(f"spec_change_count={len(r['existing_specs']['changes'])}")
+          print(f"unreleased_count={len(r['unreleased'])}")
+          print(f"has_manual={'true' if r['needs_manual_work'] else 'false'}")
+          print(f"has_new_manual={'true' if manual else 'false'}")
           print(f"has_unsupported={'true' if unsupported else 'false'}")
           print(f"has_already={'true' if already else 'false'}")
           PY
+
+      - name: 已有型号的规格变更 → issue
+        if: steps.rep.outputs.has_spec_changes == 'true' && env.DRY_RUN != '1'
+        env:
+          TITLE: "[设备更新] 已有型号的广播规格有变化"
+        run: |
+          set -euo pipefail
+          file="$RUNNER_TEMP/issue-specs.md"
+          python3 .github/scripts/spec_issue.py "$RUNNER_TEMP/report.json" > "$file"
+          num=$(gh issue list --state open --search "$TITLE in:title" --json number,title \
+                --jq '[.[] | select(.title == env.TITLE)][0].number // empty')
+          if [ -z "$num" ]; then
+            gh issue create --title "$TITLE" --body-file "$file"
+          else
+            existing=$(gh issue view "$num" --json body --jq .body)
+            if [ "$existing" != "$(cat "$file")" ]; then
+              gh issue edit "$num" --body-file "$file"
+            fi
+          fi
 
       - name: 不支持 / 待核验设备 → issue（先建后提交）
         if: >-
@@ -226,7 +251,7 @@ jobs:
           fi
 
       - name: 需人工补全 objectid → issue
-        if: steps.rep.outputs.has_manual == 'true' && env.DRY_RUN != '1'
+        if: steps.rep.outputs.has_new_manual == 'true' && env.DRY_RUN != '1'
         run: |
           set -euo pipefail
           python3 - "$RUNNER_TEMP/report.json" "$RUNNER_TEMP/pipeline.log" \
@@ -242,9 +267,9 @@ jobs:
           print("发现的新设备含**未识别的 objectid**，生成的 `DeviceEntry` 会缺少对应实体，"
                 "因此**本轮仓库零写入、未发版**。\n")
           print("需按顺序补全三处，然后重跑：\n")
-          print("1. `parser.py` 的 `xiaomi_dataobject_dict` 加映射并实现 converter")
+          print("1. `custom_components/miband/parser.py` 的 `xiaomi_dataobject_dict` 加映射并实现 converter")
           print("2. `.agents/skills/ha-miband-update/pipeline.py` 的 `FUNC_TO_CLASS` 加映射")
-          print("3. 需要时在 `const.py` 补枚举成员\n")
+          print("3. 需要时在 `custom_components/miband/const.py` 补枚举成员\n")
           for d in rows:
               print(f"### {d.get('pd_name_zh') or d['model']}（`{d['model']}`）\n")
               for o in d["unknown_objectids"]:
@@ -314,7 +339,7 @@ jobs:
           import sys
 
           v = sys.argv[1]
-          p = pathlib.Path("manifest.json")
+          p = pathlib.Path("custom_components/miband/manifest.json")
           s = p.read_text(encoding="utf-8")
           new, n = re.subn(r'("version"\s*:\s*")[^"]*(")',
                            lambda m: m.group(1) + v + m.group(2), s, count=1)
@@ -324,7 +349,7 @@ jobs:
           print(f"manifest.json version -> {v}")
           PY
 
-          git add device.py manifest.json
+          git add custom_components/miband/{device.py,manifest.json} "$SKILL/released_specs.json"
           git commit -m "新增 $(cat "$RUNNER_TEMP/names_supported.txt")"
 
           # tag 必须指向本轮提交的 SHA：`--target main` 会被期间的人为推送带偏，
@@ -336,7 +361,7 @@ jobs:
           fi
           git tag "$V" "$SHA"
           git push --atomic origin HEAD:main "refs/tags/$V"
-          echo "已推送 $SHA（tag $V）"
+          echo "已推送 ${SHA}（tag ${V}）"
 
           : > "$RUNNER_TEMP/notes.md"
           if [ -n "$PREV" ]; then
@@ -365,25 +390,26 @@ jobs:
           # 本轮发 0.3.6 → 下轮只看 0.3.6，0.3.5 再也补不上）。
           #
           # 判据只看 tag 自身：提交作者是 bot 且标题以「新增 」开头（bot 的发版提交）。
-          # 幂等：已有 Release 的 tag 直接跳过；本轮新发布的版本此时也已存在，同样跳过。
-          mapfile -t tags < <(git tag -l --sort=v:refname)
+          previous_tag=""
           backfilled=0
-          for i in "${!tags[@]}"; do
-            V="${tags[$i]}"
+          while IFS= read -r V; do
+            prev=$previous_tag
+            previous_tag=$V
             author=$(git log -1 --format=%ae "$V" 2>/dev/null || true)
             subject=$(git log -1 --format=%s "$V" 2>/dev/null || true)
             [ "$author" = "$BOT_EMAIL" ] || continue
             [ "${subject#新增 }" != "$subject" ] || continue
-            if gh release view "$V" >/dev/null 2>&1; then
+            if gh release view "$V" --json tagName >/dev/null 2>"$RUNNER_TEMP/release-error"; then
               continue
+            elif ! grep -qi 'release not found' "$RUNNER_TEMP/release-error"; then
+              cat "$RUNNER_TEMP/release-error" >&2
+              exit 1
             fi
             # tag 可能只存在于本地（上一轮 push 被拒/中断）
             if ! git ls-remote --exit-code --tags origin "refs/tags/$V" >/dev/null 2>&1; then
               git push origin "refs/tags/$V"
               echo "已补推 tag $V"
             fi
-            prev=""
-            [ "$i" -gt 0 ] && prev="${tags[$((i - 1))]}"
             : > "$RUNNER_TEMP/notes.md"
             if [ -n "$prev" ]; then
               git log --reverse --format=%s "$prev".."$V" >> "$RUNNER_TEMP/notes.md"
@@ -395,7 +421,7 @@ jobs:
             gh release create "$V" --title "$V" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
             echo "已补发 Release $V"
             backfilled=$((backfilled + 1))
-          done
+          done < <(git tag -l --sort=v:refname)
           echo "本轮补齐 Release 数量：$backfilled"
 
       - name: 汇总
@@ -406,6 +432,10 @@ jobs:
             echo ""
             echo "- 流水线退出码：\`${{ steps.pipe.outputs.exit }}\`"
             printf '%s\n' "- 可入库：\`${{ steps.rep.outputs.has_supported }}\`｜需人工补全：\`${{ steps.rep.outputs.has_manual }}\`｜不支持：\`${{ steps.rep.outputs.has_unsupported }}\`｜待核验 pd_id：\`${{ steps.rep.outputs.has_already }}\`"
+            if [ -n "${{ steps.rep.outputs.spec_count }}" ]; then
+              echo "- 已有型号：核对 ${{ steps.rep.outputs.spec_count }} 个，规格变更 ${{ steps.rep.outputs.spec_change_count }} 个。"
+              echo "- 新设备：${{ steps.rep.outputs.unreleased_count }} 个尚待规格发布，下周重查。"
+            fi
             if [ -f "$RUNNER_TEMP/names_supported.txt" ]; then
               printf '%s\n' "- 入库设备：$(cat "$RUNNER_TEMP/names_supported.txt")"
             fi

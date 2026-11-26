@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-获取小米运动健康 get_config_info_by_category 数据（中/英文）。
+获取小米运动健康 get_config_info_by_category 数据（区域与语言分别指定）。
 
-抓包分析结论:
-  * 该接口存在未登录分支: 仅凭 cookie auth_key=rwelJuWBFJxmbMKD 即可返回 code:0 明文 JSON。
-  * auth_key 是全局固定值, 服务端只校验它。
-  * data 参数必需, 但其内部只有 category 字段是真正必要的。
-  * 语言由 URL 参数 locale 决定: zh_cn -> 中文, en_us -> 英文。
+产品目录按地区和语言返回可穿戴设备，无需用户登录。
 
 用法:
-  python3 get_config_info_by_category_fetch.py            # 中英两种都拉取并保存
-  python3 get_config_info_by_category_fetch.py --lang zh  # 只拉中文, 存 get_config_info_by_category.json
-  python3 get_config_info_by_category_fetch.py --lang en  # 只拉英文, 存 get_config_info_by_category_en.json
+  python3 get_config_info_by_category.py            # 中国区，中英两种都拉取并保存
+  python3 get_config_info_by_category.py --lang zh  # 只拉中文, 存 get_config_info_by_category.json
+  python3 get_config_info_by_category.py --lang en  # 只拉英文, 存 get_config_info_by_category_en.json
 """
 
 import argparse
 import json
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -24,12 +21,15 @@ import urllib.request
 API = "https://hlth.io.mi.com/app/v1/product/get_config_info_by_category"
 AUTH_KEY = "rwelJuWBFJxmbMKD"
 CATEGORY = "wearable"
+# 与 cloud.py 的 SERVERS 一致。中国区使用不带前缀的域名。
+REGIONS = ("cn", "de", "us", "ru", "sg", "i2")
 
 
-def fetch(lang: str) -> dict:
+def fetch(lang: str, *, region: str = "cn") -> dict:
     locale = "en_us" if lang == "en" else "zh_cn"
     params = {"locale": locale, "data": json.dumps({"category": CATEGORY}, separators=(",", ":"))}
-    url = f"{API}?{urllib.parse.urlencode(params)}"
+    api = API if region == "cn" else API.replace("://", f"://{region}.", 1)
+    url = f"{api}?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(
         url,
         headers={
@@ -44,6 +44,44 @@ def fetch(lang: str) -> dict:
 
             raw = gzip.decompress(raw)
         return json.loads(raw)
+
+
+def has_chinese_name(name: str | None) -> bool:
+    return bool(re.search(r"[\u3400-\u9fff]", name or ""))
+
+
+def fetch_catalog(lang: str) -> dict:
+    """按 PID 合并各区目录；任一区抓取失败就不返回部分结果。"""
+    by_pid = {}
+    modified_times = []
+    for region in REGIONS:
+        try:
+            data = fetch(lang, region=region)
+            if data.get("code") not in (None, 0):
+                raise ValueError(f"接口返回 code={data.get('code')}")
+            result = data.get("result") or {}
+            if not result.get("list"):
+                raise ValueError("接口未返回设备列表")
+        except Exception as e:
+            raise RuntimeError(f"{region}/{lang}: {e}") from e
+
+        if (modified := result.get("last_modify_time")) is not None:
+            modified_times.append(modified)
+        for item in result["list"]:
+            if "pd_id" not in item:
+                continue
+            current = by_pid.setdefault(item["pd_id"], item.copy())
+            name = item.get("pd_name")
+            current_name = current.get("pd_name")
+            if name and (not current_name or (
+                lang == "zh" and has_chinese_name(name) and not has_chinese_name(current_name)
+            )):
+                current["pd_name"] = name
+
+    return {"code": 0, "result": {
+        "list": list(by_pid.values()),
+        "last_modify_time": max(modified_times, default=None),
+    }}
 
 
 def main() -> int:

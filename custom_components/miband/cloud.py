@@ -477,12 +477,7 @@ class XiaomiCloudTokenFetch:
                 if "detail" not in device or device["detail"]["mac"] != formatted_mac:
                     continue
                 if beacon_key := device["detail"].get("beaconkey"):
-                    _LOGGER.debug(
-                        "Found beacon key for %s: %s (%s)",
-                        formatted_mac,
-                        beacon_key,
-                        device,
-                    )
+                    _LOGGER.debug("Retrieved the bind key for the requested device")
                     return XiaomiCloudBLEDevice(
                         device["name"], device["detail"]["mac"], beacon_key
                     )
